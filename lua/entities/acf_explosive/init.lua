@@ -230,12 +230,12 @@ function ENT:Detonate(overrideBData)
 	local phys = self:GetPhysicsObject()
 	local pos = self:GetPos()
 		
-	local phyvel = 	phys and phys:GetVelocity() or Vector(0, 0, 1000)
-	bdata.Flight = 	bdata.Flight or phyvel
+	local phyvel = phys and phys:GetVelocity() or Vector(0, 0, 1000)
+	bdata.Flight = bdata.Flight or phyvel
 	
 	timer.Simple(3, function() if IsValid(self) then if IsValid(self.FakeCrate) then self.FakeCrate:Remove() end self:Remove() end end)
-	
-	if overrideBData.Entity.Fuse.Cluster == nil then
+
+	if not bdata.Entity.Fuse or not bdata.Entity.Fuse.Cluster then
 		
 		bdata.Owner = 	bdata.Owner or self.Owner
 		bdata.Pos = 	pos + (self.DetonateOffset or bdata.Flight:GetNormalized())
@@ -248,20 +248,18 @@ function ENT:Detonate(overrideBData)
 		else bdata.Filter = {self} end
 		
 		bdata.RoundMass = bdata.RoundMass or bdata.ProjMass
-		bdata.ProjMass = bdata.ProjMass or bdata.RoundMass 
+		bdata.ProjMass = bdata.ProjMass or bdata.RoundMass
 		
 		bdata.HandlesOwnIteration = nil
 
 		ACFM_BulletLaunch(bdata)
-		
-		
 
 		self:SetSolid(SOLID_NONE)
+		self:SetNoDraw(true)
+
 		phys:EnableMotion(false)
 		
 		self:DoReplicatedPropHit(bdata)
-		
-		self:SetNoDraw(true)
 	else
 		self:SetNoDraw(true)
 		--self:ClusterBomb(ACFM_CompactBulletData(bdata),bdata.Flight or phyvel)
