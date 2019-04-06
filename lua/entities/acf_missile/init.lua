@@ -37,14 +37,16 @@ end
 
 
 
-local function ApplyBodySubgroup( Missile, GroupName, TargetName )
+local function ApplyBodySubgroup( Missile, Group, Target )
 
-	local GroupLower = string.lower(TargetName) .. ".smd"
+	local TargetLower = string.lower(Target) .. ".smd"
 
-	for k, v in pairs(GroupName.submodels) do
+	if not Group.submodels then return end
 
-		if string.lower(v) == GroupLower then
-			Missile:SetBodygroup(GroupName.id, k)
+	for k, v in pairs(Group.submodels) do
+
+		if string.lower(v) == TargetLower then
+			Missile:SetBodygroup(Group.id, k)
 
 			return
 		end
@@ -63,11 +65,11 @@ local function UpdateBodygroups( Missile )
 
 		if GroupName == "guidance" and Missile.Guidance then
 
-			ApplyBodySubgroup(Missile, GroupName, Missile.Guidance.Name)
+			ApplyBodySubgroup(Missile, v, Missile.Guidance.Name)
 
 		elseif GroupName == "warhead" and Missile.BulletData then
 
-			ApplyBodySubgroup(Missile, GroupName, Missile.BulletData.Type)
+			ApplyBodySubgroup(Missile, v, Missile.BulletData.Type)
 
 		end
 	end
