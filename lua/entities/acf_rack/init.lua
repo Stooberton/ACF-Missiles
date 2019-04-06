@@ -13,128 +13,13 @@ DEFINE_BASECLASS("acf_explosive")
 
 
 
-function ENT:GetReloadTime( NextMissile )
-
-	local ReloadMult = self.ReloadMultiplier or 1
-	local ReloadBonus = self.ReloadMultiplierBonus or 0
-	local MagSize = (self.MagSize or 1) ^ 1.1
-	local DelayMult = (ReloadMult - (ReloadMult - 1) * ReloadBonus) / MagSize
-	local ReloadTime = self:GetFireDelay(NextMissile) * DelayMult
-
-	self:SetNetworkedBeamFloat(	"Reload", ReloadTime )
-
-	return ReloadTime
-
-end
-
-
-
-
-function ENT:GetFireDelay( NextMissile )
-
-	if not IsValid( NextMissile ) then
-		self:SetNetworkedBeamFloat(	"Interval",	self.LastValidFireDelay or 1 )
-
-		return self.LastValidFireDelay or 1
-	end
-
-	local BulletData = NextMissile.BulletData
-	local Gun = list.Get("ACFEnts").Guns[BulletData.Id]
-
-	if not Gun then return self.LastValidFireDelay or 1 end
-
-	local Class = list.Get("ACFClasses").GunClass[Gun.gunclass]
-	local Interval = ((BulletData.RoundVolume / 500) ^ 0.60) * (Gun.rofmod or 1) * (Class.rofmod or 1)
-
-	self.LastValidFireDelay = Interval
-	self:SetNetworkedBeamFloat(	"Interval", Interval )
-
-	return Interval
-
-end
-
-
-
-
-function ENT:Initialize()
-
-	self.BaseClass.Initialize(self)
-
-	self.SpecialHealth = true	--If true needs a special ACF_Activate function
-	self.SpecialDamage = true	--If true needs a special ACF_OnDamage function --NOTE: you can't "fix" missiles with setting this to false, it acts like a prop!!!!
-	self.ReloadTime = 1
-	self.Ready = true
-	self.Firing = nil
-	self.NextFire = 1
-	self.PostReloadWait = CurTime()
-	self.WaitFunction = self.GetFireDelay
-	self.LastSend = 0
-	self.Owner = self
-
-	self.IsMaster = true
-	self.Sequence = 1
-	self.LastThink = CurTime()
-
-	self.BulletData = {
-		Type = "Empty",
-		PropMass = 0,
-		ProjMass = 0
-	}
-
-	self.Inaccuracy = 1
-	
-	self.Inputs = WireLib.CreateSpecialInputs( self, { "Fire",      "Reload",   "Target Pos",   "Target Ent" },
-													 { "NORMAL",    "NORMAL",   "VECTOR",       "ENTITY"    } )
-
-	self.Outputs = WireLib.CreateSpecialOutputs( self, 	{ "Ready",	"Entity",	"Shots Left",  "Position",  "Target" },
-														{ "NORMAL",	"ENTITY",	"NORMAL",      "VECTOR",    "ENTITY" } )
-
-	Wire_TriggerOutput(self, "Entity", self)
-	Wire_TriggerOutput(self, "Ready", 1)
-	self.WireDebugName = "ACF Rack"
-
-	self.Missiles = {}
-
-	self.AmmoLink = {}
-
-end
-
-
-
-
-function ENT:ACF_Activate( Recalc )
-
-	local EmptyMass = self.RoundWeight or self.Mass or 10
-	local PhysObj = self:GetPhysicsObject()
-
-	self.ACF = self.ACF or {}
-
-	if not self.ACF.Area then
-		self.ACF.Area = PhysObj:GetSurfaceArea() * 6.45
-	end
-
-	if not self.ACF.Volume then
-		self.ACF.Volume = PhysObj:GetVolume() * 16.38
-	end
-
-	local Armour = self.CustomArmour or (EmptyMass*1000 / self.ACF.Area / 0.78) --So we get the equivalent thickness of that prop in mm if all it's weight was a steel plate
-	local Health = self.ACF.Volume / ACF.Threshold								--Setting the threshold of the prop Area gone
-	local Percent = 1
-
-	if Recalc and self.ACF.Health and self.ACF.MaxHealth then
-		Percent = self.ACF.Health/self.ACF.MaxHealth
-	end
-
-	self.ACF.Health = Health * Percent
-	self.ACF.MaxHealth = Health
-	self.ACF.Armour = Armour * (0.5 + Percent * 0.5)
-	self.ACF.MaxArmour = Armour
-	self.ACF.Type = nil
-	self.ACF.Mass = self.Mass
-	self.ACF.Density = PhysObj:GetMass() * 1000 / self.ACF.Volume
-	self.ACF.Type = "Prop"
-
-end
+local WireTable = {
+	gmod_wire_adv_pod = true,
+	gmod_wire_pod = true,
+	gmod_wire_keyboard = true,
+	gmod_wire_joystick = true,
+	gmod_wire_joystick_multi = true
+}
 
 
 
@@ -146,228 +31,6 @@ local function TrimNullMissiles( Rack ) -- Missiles should clean themselves afte
 			table.remove(Rack.Missiles, i)
 		end
 	end
-
-end
-
-
-
-
-local function DetonateAmmo( Rack, Inflictor ) -- Racks shouldn't explode
-
-	TrimNullMissiles(Rack)
-
-	local FillerMass, ProjLength = 0, 0
-	local BulletId
-
-	for i = #Rack.Missiles, 1, -1 do
-
-		local Missile = Rack.Missiles[i]
-		local BulletData = Missile.BulletData
-
-		if not BulletId and BulletData.Id then
-			BulletId = BulletData.Id
-		end
-
-		if BulletData.ProjLength then
-			ProjLength = ProjLength + BulletData.ProjLength
-		end
-
-		if BulletData.FillerMass then
-			FillerMass = FillerMass + BulletData.FillerMass
-		end
-
-		Missile:Remove()
-
-	end
-	
-	if BulletId and ProjLength > 0 and FillerMass > 0 then
-
-		Rack.BulletData = {
-			Id		   = BulletId,
-			ProjLength = ProjLength,
-			PropLength = "0.01",
-			Type	   = "HE",
-			FillerMass = FillerMass
-		}
-
-		local CompactData = ACFM_CompactBulletData(Rack.BulletData)
-
-		Rack:SetBulletData(CompactData)
-		Rack:Detonate()
-
-	end
-	
-end
-
-
-
-
---Thanks sestze
-function ENT:ACF_OnDamage( Entity , Energy , FrArea , Angle , Inflictor )	--This function needs to return HitRes
-
-	local HitRes = ACF_PropDamage( Entity , Energy , FrArea , Angle , Inflictor )	--Calling the standard damage prop function
-	local AmmoCount = #self.Missiles
-
-	-- Detonate rack if damage causes ammo rupture, or a penetrating shot hits some ammo.
-	if not HitRes.Kill then
-		local Ratio = (HitRes.Damage * (self.ACF.MaxHealth - self.ACF.Health) / self.ACF.MaxHealth) ^ 0.2
-		local AmmoRatio = AmmoCount / self.MagSize	--Thanks, eagle-eyed sestze!
-		local Chance = math.Rand(0, 1)
-
-		if Ratio * AmmoRatio > Chance or HitRes.Overkill > 0 and Chance > (1 - AmmoRatio) then
-			self.Inflictor = Inflictor
-			HitRes.Kill = true
-		end
-	end
-
-	if HitRes.Kill then
-		-- Which bulletdata to use?! Let's let them figure that out.
-		if hook.Run( "ACF_AmmoExplode", self, nil ) == false then print("hello?") return HitRes end
-
-		self.Exploding = true
-
-		if IsValid(Inflictor) and Inflictor:IsPlayer() then
-			self.Inflictor = Inflictor
-		end
-
-		if AmmoCount > 0 then
-			DetonateAmmo( self, Inflictor)
-		else
-			ACF_HEKill( self , VectorRand() )
-		end
-	end
-
-	return HitRes --This function needs to return HitRes
-
-end
-
-
-
-
-function ENT:CanLoadCaliber( Caliber )
-
-	return ACF_RackCanLoadCaliber( self.Id, Caliber )
-
-end
-
-
-
-
-function ENT:Link( Crate )
-
-	-- Don't link if it's not an ammo crate
-	if not IsValid(Crate) or Crate:GetClass() ~= "acf_ammo" then
-		return false, "Racks can only be linked to ammo crates!"
-	end
-
-	local BulletData = Crate.BulletData
-	local BulletType = BulletData.RoundType or BulletData.Type
-
-	-- Don't link if it's a refill crate
-	if BulletType == "Refill" then
-		return false, "Refill crates cannot be linked!"
-	end
-
-	-- Don't link if it's a blacklisted round type for this gun
-	local GunClass = ACF_GetGunValue(BulletData, "gunclass")
-	local Blacklist = ACF.AmmoBlacklist[BulletType] or {}
-
-	if not GunClass or table.HasValue( Blacklist, GunClass ) then
-		return false, "That round type cannot be used with this gun!"
-	end
-
-	-- Don't link if it's not a missile.
-	local Result, Message = ACF_CanLinkRack(self.Id, BulletData.Id, BulletData, self)
-	if not Result then return Result, Message end
-
-	-- Don't link if it's already linked
-	for k, v in pairs( self.AmmoLink ) do
-		if v == Crate then
-			return false, "That crate is already linked to this gun!"
-		end
-	end
-
-	table.insert( self.AmmoLink, Crate )
-	table.insert( Crate.Master, self )
-
-	return true, "Link successful!"
-
-end
-
-
-
-
-function ENT:Unlink( Target )
-
-	for k, v in pairs(self.AmmoLink) do
-		if v == Target then
-			table.remove(self.AmmoLink, k)
-
-			return true, "Unlink successful!"
-		end
-	end
-
-	return false, "That entity is not linked to this gun!"
-
-end
-
-
-
-
-function ENT:UnloadAmmo()
-	-- we're ok with mixed munitions.
-end
-
-
-
-
-local WireTable = {
-	gmod_wire_adv_pod = true,
-	gmod_wire_pod = true,
-	gmod_wire_keyboard = true,
-	gmod_wire_joystick = true,
-	gmod_wire_joystick_multi = true
-}
-
-function ENT:GetUser( Input )
-	if not Input then return nil end
-
-	if Input:GetClass() == "gmod_wire_adv_pod" then
-		if Input.Pod then
-			return Input.Pod:GetDriver()
-		end
-	elseif Input:GetClass() == "gmod_wire_pod" then
-		if Input.Pod then
-			return Input.Pod:GetDriver()
-		end
-	elseif Input:GetClass() == "gmod_wire_keyboard" then
-		if Input.ply then
-			return Input.ply
-		end
-	elseif Input:GetClass() == "gmod_wire_joystick" then
-		if Input.Pod then
-			return Input.Pod:GetDriver()
-		end
-	elseif Input:GetClass() == "gmod_wire_joystick_multi" then
-		if Input.Pod then
-			return Input.Pod:GetDriver()
-		end
-	elseif Input:GetClass() == "gmod_wire_expression2" then
-		if Input.Inputs.Fire then
-			return self:GetUser(Input.Inputs.Fire.Src)
-		elseif Input.Inputs.Shoot then
-			return self:GetUser(Input.Inputs.Shoot.Src)
-		elseif Input.Inputs then
-			for _, v in pairs(Input.Inputs) do
-				if not IsValid(v.Src) then return Input.Owner or Input:GetOwner() end
-				if WireTable[v.Src:GetClass()] then
-					return self:GetUser(v.Src)
-				end
-			end
-		end
-	end
-
-	return Input.Owner or Input:GetOwner()
 
 end
 
@@ -401,6 +64,15 @@ local function CanReload( Rack )
 	if Rack.NextFire < 1 then return false end
 
 	return true
+
+end
+
+
+
+
+local function MuzzleEffect( Missile )
+
+	Missile:EmitSound( "phx/epicmetal_hard.wav", 500, 100 )
 
 end
 
@@ -665,9 +337,8 @@ local function FireMissile( Rack )
 			Missile:DoFlight(BulletData.Pos, ShootVec)
 			Missile:Launch()
 
-			SetLoadedWeight(Rack)
-
-			Rack:MuzzleEffect( Attach, Missile.BulletData )
+			MuzzleEffect( Rack )
+			SetLoadedWeight(Rack)			
 
 			Rack:SetNetworkedBeamInt("Ammo", #Rack.Missiles)
 
@@ -684,32 +355,6 @@ local function FireMissile( Rack )
 
 	else
 		Rack:EmitSound("weapons/pistol/pistol_empty.wav",500,100)
-	end
-
-end
-
-
-
-
-function ENT:TriggerInput( InputName, Value )
-
-	if InputName == "Fire" then
-		local Firing = ACF.GunfireEnabled and Value ~= 0
-
-		if Firing and self.NextFire >= 1 then
-			self.User = self:GetUser(self.Inputs.Fire.Src)
-			if not IsValid(self.User) then self.User = self.Owner end
-			FireMissile(self)
-			self:Think()
-		end
-
-		self.Firing = Firing
-	elseif InputName == "Reload" and Value ~= 0 then
-		Reload(self)
-	elseif InputName == "Target Pos" then
-		Wire_TriggerOutput(self, "Position", Value)
-	elseif InputName == "Target Ent" then
-		Wire_TriggerOutput(self, "Target", Value)
 	end
 
 end
@@ -804,6 +449,330 @@ local function SetStatusString( Rack )
 	end
 
 	Rack:SetNetworkedBeamString("Status", "")
+
+end
+
+
+
+
+local function ACF_Rack_OnPhysgunDrop( Player, Ent )
+
+    if Ent:GetClass() == "acf_rack" then
+        timer.Simple(0.01, function() if IsValid(Ent) then SetLoadedWeight(Ent) end end)
+    end
+
+end
+
+hook.Add("PhysgunDrop", "ACF_Rack_OnPhysgunDrop", ACF_Rack_OnPhysgunDrop)
+
+
+
+
+function ENT:GetReloadTime( NextMissile )
+
+	local ReloadMult = self.ReloadMultiplier or 1
+	local ReloadBonus = self.ReloadMultiplierBonus or 0
+	local MagSize = (self.MagSize or 1) ^ 1.1
+	local DelayMult = (ReloadMult - (ReloadMult - 1) * ReloadBonus) / MagSize
+	local ReloadTime = self:GetFireDelay(NextMissile) * DelayMult
+
+	self:SetNetworkedBeamFloat(	"Reload", ReloadTime )
+
+	return ReloadTime
+
+end
+
+
+
+
+function ENT:GetFireDelay( NextMissile )
+
+	if not IsValid( NextMissile ) then
+		self:SetNetworkedBeamFloat(	"Interval",	self.LastValidFireDelay or 1 )
+
+		return self.LastValidFireDelay or 1
+	end
+
+	local BulletData = NextMissile.BulletData
+	local Gun = list.Get("ACFEnts").Guns[BulletData.Id]
+
+	if not Gun then return self.LastValidFireDelay or 1 end
+
+	local Class = list.Get("ACFClasses").GunClass[Gun.gunclass]
+	local Interval = ((BulletData.RoundVolume / 500) ^ 0.60) * (Gun.rofmod or 1) * (Class.rofmod or 1)
+
+	self.LastValidFireDelay = Interval
+	self:SetNetworkedBeamFloat(	"Interval", Interval )
+
+	return Interval
+
+end
+
+
+
+
+function ENT:Initialize()
+
+	self.BaseClass.Initialize(self)
+
+	self.SpecialHealth = true	--If true needs a special ACF_Activate function
+	self.SpecialDamage = true	--If true needs a special ACF_OnDamage function --NOTE: you can't "fix" missiles with setting this to false, it acts like a prop!!!!
+	self.ReloadTime = 1
+	self.Ready = true
+	self.Firing = nil
+	self.NextFire = 1
+	self.PostReloadWait = CurTime()
+	self.WaitFunction = self.GetFireDelay
+	self.LastSend = 0
+	self.Owner = self
+
+	self.IsMaster = true
+	self.Sequence = 1
+	self.LastThink = CurTime()
+
+	self.BulletData = {
+		Type = "Empty",
+		PropMass = 0,
+		ProjMass = 0
+	}
+
+	self.Inaccuracy = 1
+	
+	self.Inputs = WireLib.CreateSpecialInputs( self, { "Fire",      "Reload",   "Target Pos",   "Target Ent" },
+													 { "NORMAL",    "NORMAL",   "VECTOR",       "ENTITY"    } )
+
+	self.Outputs = WireLib.CreateSpecialOutputs( self, 	{ "Ready",	"Entity",	"Shots Left",  "Position",  "Target" },
+														{ "NORMAL",	"ENTITY",	"NORMAL",      "VECTOR",    "ENTITY" } )
+
+	Wire_TriggerOutput(self, "Entity", self)
+	Wire_TriggerOutput(self, "Ready", 1)
+	self.WireDebugName = "ACF Rack"
+
+	self.Missiles = {}
+
+	self.AmmoLink = {}
+
+end
+
+
+
+
+function ENT:ACF_Activate( Recalc )
+
+	local EmptyMass = self.RoundWeight or self.Mass or 10
+	local PhysObj = self:GetPhysicsObject()
+
+	self.ACF = self.ACF or {}
+
+	if not self.ACF.Area then
+		self.ACF.Area = PhysObj:GetSurfaceArea() * 6.45
+	end
+
+	if not self.ACF.Volume then
+		self.ACF.Volume = PhysObj:GetVolume() * 16.38
+	end
+
+	local Armour = self.CustomArmour or (EmptyMass*1000 / self.ACF.Area / 0.78) --So we get the equivalent thickness of that prop in mm if all it's weight was a steel plate
+	local Health = self.ACF.Volume / ACF.Threshold								--Setting the threshold of the prop Area gone
+	local Percent = 1
+
+	if Recalc and self.ACF.Health and self.ACF.MaxHealth then
+		Percent = self.ACF.Health/self.ACF.MaxHealth
+	end
+
+	self.ACF.Health = Health * Percent
+	self.ACF.MaxHealth = Health
+	self.ACF.Armour = Armour * (0.5 + Percent * 0.5)
+	self.ACF.MaxArmour = Armour
+	self.ACF.Type = nil
+	self.ACF.Mass = self.Mass
+	self.ACF.Density = PhysObj:GetMass() * 1000 / self.ACF.Volume
+	self.ACF.Type = "Prop"
+
+end
+
+
+
+
+function ENT:ACF_OnDamage( Entity , Energy , FrArea , Angle , Inflictor )
+
+	if self.Exploded then
+		return { Damage = 0, Overkill = 1, Loss = 0, Kill = false }
+	end
+
+	local HitRes = ACF_PropDamage( Entity , Energy , FrArea , Angle , Inflictor )	--Calling the standard damage prop function
+
+	-- If the rack is destroyed.
+	if HitRes.Kill then
+		-- Which bulletdata to use?! Let's let them figure that out.
+		if hook.Run( "ACF_AmmoExplode", self, nil ) == false then return HitRes end
+
+		TrimNullMissiles(self)
+
+		self.Exploded = true
+
+		if IsValid(Inflictor) and Inflictor:IsPlayer() then
+			self.Inflictor = Inflictor
+		end
+
+		local Missiles = self.Missiles
+
+		if next(Missiles) then
+			for i = #Missiles, 1, -1 do
+				Missiles[i]:Detonate()
+			end
+		end
+	end
+
+	return HitRes --This function needs to return HitRes
+
+end
+
+
+
+
+function ENT:CanLoadCaliber( Caliber )
+
+	return ACF_RackCanLoadCaliber( self.Id, Caliber )
+
+end
+
+
+
+
+function ENT:Link( Crate )
+
+	-- Don't link if it's not an ammo crate
+	if not IsValid(Crate) or Crate:GetClass() ~= "acf_ammo" then
+		return false, "Racks can only be linked to ammo crates!"
+	end
+
+	local BulletData = Crate.BulletData
+	local BulletType = BulletData.RoundType or BulletData.Type
+
+	-- Don't link if it's a refill crate
+	if BulletType == "Refill" then
+		return false, "Refill crates cannot be linked!"
+	end
+
+	-- Don't link if it's a blacklisted round type for this gun
+	local GunClass = ACF_GetGunValue(BulletData, "gunclass")
+	local Blacklist = ACF.AmmoBlacklist[BulletType] or {}
+
+	if not GunClass or table.HasValue( Blacklist, GunClass ) then
+		return false, "That round type cannot be used with this gun!"
+	end
+
+	-- Don't link if it's not a missile.
+	local Result, Message = ACF_CanLinkRack(self.Id, BulletData.Id, BulletData, self)
+	if not Result then return Result, Message end
+
+	-- Don't link if it's already linked
+	for k, v in pairs( self.AmmoLink ) do
+		if v == Crate then
+			return false, "That crate is already linked to this gun!"
+		end
+	end
+
+	table.insert( self.AmmoLink, Crate )
+	table.insert( Crate.Master, self )
+
+	return true, "Link successful!"
+
+end
+
+
+
+
+function ENT:Unlink( Target )
+
+	for k, v in pairs(self.AmmoLink) do
+		if v == Target then
+			table.remove(self.AmmoLink, k)
+
+			return true, "Unlink successful!"
+		end
+	end
+
+	return false, "That entity is not linked to this gun!"
+
+end
+
+
+
+
+function ENT:UnloadAmmo()
+	-- we're ok with mixed munitions.
+end
+
+
+
+
+function ENT:GetUser( Input )
+	if not Input then return nil end
+
+	if Input:GetClass() == "gmod_wire_adv_pod" then
+		if Input.Pod then
+			return Input.Pod:GetDriver()
+		end
+	elseif Input:GetClass() == "gmod_wire_pod" then
+		if Input.Pod then
+			return Input.Pod:GetDriver()
+		end
+	elseif Input:GetClass() == "gmod_wire_keyboard" then
+		if Input.ply then
+			return Input.ply
+		end
+	elseif Input:GetClass() == "gmod_wire_joystick" then
+		if Input.Pod then
+			return Input.Pod:GetDriver()
+		end
+	elseif Input:GetClass() == "gmod_wire_joystick_multi" then
+		if Input.Pod then
+			return Input.Pod:GetDriver()
+		end
+	elseif Input:GetClass() == "gmod_wire_expression2" then
+		if Input.Inputs.Fire then
+			return self:GetUser(Input.Inputs.Fire.Src)
+		elseif Input.Inputs.Shoot then
+			return self:GetUser(Input.Inputs.Shoot.Src)
+		elseif Input.Inputs then
+			for _, v in pairs(Input.Inputs) do
+				if not IsValid(v.Src) then return Input.Owner or Input:GetOwner() end
+				if WireTable[v.Src:GetClass()] then
+					return self:GetUser(v.Src)
+				end
+			end
+		end
+	end
+
+	return Input.Owner or Input:GetOwner()
+
+end
+
+
+
+
+function ENT:TriggerInput( InputName, Value )
+
+	if InputName == "Fire" then
+		local Firing = ACF.GunfireEnabled and Value ~= 0
+
+		if Firing and self.NextFire >= 1 then
+			self.User = self:GetUser(self.Inputs.Fire.Src)
+			if not IsValid(self.User) then self.User = self.Owner end
+			FireMissile(self)
+			self:Think()
+		end
+
+		self.Firing = Firing
+	elseif InputName == "Reload" and Value ~= 0 then
+		Reload(self)
+	elseif InputName == "Target Pos" then
+		Wire_TriggerOutput(self, "Position", Value)
+	elseif InputName == "Target Ent" then
+		Wire_TriggerOutput(self, "Target", Value)
+	end
 
 end
 
@@ -956,36 +925,6 @@ duplicator.RegisterEntityClass("acf_rack", MakeACF_Rack, "Pos", "Angle", "Id")
 
 
 
-function ENT:MuzzleEffect( Attach, BulletData )
-
-	self:EmitSound( "phx/epicmetal_hard.wav", 500, 100 )
-
-	-- local Effect = EffectData()
-		-- Effect:SetEntity( self )
-		-- Effect:SetScale( self.BulletData.PropMass )
-		-- Effect:SetAttachment( Attach )
-		-- Effect:SetSurfaceProp( ACF.RoundTypes[BulletData.Type].netid  )	--Encoding the ammo type into a table index
-	-- util.Effect( "ACF_MissileLaunch", Effect, true, true )
-
-end
-
-
-
-
-function ENT:ReloadEffect()
-
-	-- local Effect = EffectData()
-		-- Effect:SetEntity( self )
-		-- Effect:SetScale( 0 )
-		-- Effect:SetMagnitude( self.ReloadTime or 1 )
-		-- Effect:SetSurfaceProp( ACF.RoundTypes[self.BulletData.Type].netid  )	--Encoding the ammo type into a table index
-	-- util.Effect( "ACF_MuzzleFlash", Effect, true, true )
-
-end
-
-
-
-
 function ENT:PreEntityCopy()
 
 	if next(self.AmmoLink) then
@@ -1051,26 +990,13 @@ end
 
 
 
-local function ACF_Rack_OnPhysgunDrop( Player, Ent )
-
-    if Ent:GetClass() == "acf_rack" then
-        timer.Simple(0.01, function() if IsValid(Ent) then SetLoadedWeight(Ent) end end)
-    end
-
-end
-
-hook.Add("PhysgunDrop", "ACF_Rack_OnPhysgunDrop", ACF_Rack_OnPhysgunDrop)
-
-
-
-
 function ENT:OnRemove()
-	Wire_Remove(self.Entity)
+	Wire_Remove(self)
 end
 
 
 
 
 function ENT:OnRestore()
-	Wire_Restored(self.Entity)
+	Wire_Restored(self)
 end

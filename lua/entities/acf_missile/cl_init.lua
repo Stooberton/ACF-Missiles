@@ -3,33 +3,18 @@ include("shared.lua")
 
 
 
-function ENT:Initialize()
-
-end
-
-
-
-
 function ENT:Draw()
 
-	self:DrawModel() 
+	local LightSize = self:GetNWFloat("LightSize")
+
+	self:DrawModel()
 	
-	if self:GetNWFloat("LightSize") then	
-		self:RenderMotorLight()
+	if LightSize then	
+		local Index = self:EntIndex()
+		local Colour = Color(255, 128, 48)
+		local LightPos = self:GetPos() - self:GetForward() * 64
+		
+		ACFM_RenderLight( Index, LightSize * 175, Colour, LightPos )
 	end
 	
-end
-
-
-
-
-function ENT:RenderMotorLight()
-
-	local idx = self:EntIndex()
-	local lightSize = self:GetNWFloat("LightSize") * 175
-	local colour = Color(255, 128, 48)
-	local pos = self:GetPos() - self:GetForward() * 64
-	
-	ACFM_RenderLight(idx, lightSize, colour, pos)
-
 end
