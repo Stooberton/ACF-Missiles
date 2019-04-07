@@ -401,7 +401,7 @@ local function UpdateRefillBonus( Rack )
 	local MinFullEfficiency = 50000 * Efficiency	-- The minimum crate volume to provide full efficiency bonus all by itself.
 	local MaxDist = ACF.RefillDistance
 
-	if next(ACF.AmmoCrates) then
+	if ACF.AmmoCrates and next(ACF.AmmoCrates) then
 		for k, v in pairs(ACF.AmmoCrates) do
 
 			if v.RoundType == "Refill" and v.Ammo > 0 and v.Load then
