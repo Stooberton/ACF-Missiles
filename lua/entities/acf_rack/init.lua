@@ -401,18 +401,20 @@ local function UpdateRefillBonus( Rack )
 	local MinFullEfficiency = 50000 * Efficiency	-- The minimum crate volume to provide full efficiency bonus all by itself.
 	local MaxDist = ACF.RefillDistance
 
-	for k, v in pairs(ACF.AmmoCrates) do
+	if next(ACF.AmmoCrates) then
+		for k, v in pairs(ACF.AmmoCrates) do
 
-		if v.RoundType == "Refill" and v.Ammo > 0 and v.Load then
-			local CrateDist = SelfPos:Distance(v:GetPos())
+			if v.RoundType == "Refill" and v.Ammo > 0 and v.Load then
+				local CrateDist = SelfPos:Distance(v:GetPos())
 
-			if CrateDist < MaxDist then
+				if CrateDist < MaxDist then
 
-				CrateDist = math.max(0, CrateDist * 2 - MaxDist)
+					CrateDist = math.max(0, CrateDist * 2 - MaxDist)
 
-				local Bonus = ( v.Volume / MinFullEfficiency ) * ( MaxDist - CrateDist ) / MaxDist
+					local Bonus = ( v.Volume / MinFullEfficiency ) * ( MaxDist - CrateDist ) / MaxDist
 
-				TotalBonus = TotalBonus + Bonus
+					TotalBonus = TotalBonus + Bonus
+				end
 			end
 		end
 	end
