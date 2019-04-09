@@ -197,7 +197,7 @@ local function LoadAmmo( Rack )
 	local Missile = AddMissile(Rack)
 
 	TrimNullMissiles(Rack)
-	Rack:SetNetworkedBeamInt("Ammo", #Rack.Missiles)
+	Rack:SetNWInt( "Ammo", #Rack.Missiles )
 
 	Rack.NextFire = 0
 	Rack.PostReloadWait = CurTime() + 5
@@ -340,7 +340,7 @@ local function FireMissile( Rack )
 			MuzzleEffect( Rack )
 			SetLoadedWeight(Rack)
 
-			Rack:SetNetworkedBeamInt("Ammo", #Rack.Missiles)
+			Rack:SetNWInt("Ammo", #Rack.Missiles)
 
 		else
 			Rack:EmitSound("weapons/pistol/pistol_empty.wav", 500, 100)
@@ -420,7 +420,7 @@ local function UpdateRefillBonus( Rack )
 	end
 
 	Rack.ReloadMultiplierBonus = math.min(TotalBonus, 1)
-	Rack:SetNetworkedBeamFloat(	"ReloadBonus", Rack.ReloadMultiplierBonus)
+	Rack:SetNWFloat("ReloadBonus", Rack.ReloadMultiplierBonus)
 
 	return Rack.ReloadMultiplierBonus
 
@@ -434,23 +434,23 @@ local function SetStatusString( Rack )
 	local PhysObj = Rack:GetPhysicsObject()
 
 	if not IsValid(PhysObj) then
-		Rack:SetNetworkedBeamString("Status", "Something truly horrifying happened to this rack - it has no physics object.")
+		Rack:SetNWString("Status", "Something truly horrifying happened to this rack - it has no physics object.")
 		return
 	end
 
 	local OpticalWeight = Rack.LegalWeight or Rack.Mass
 
 	if PhysObj:GetMass() < OpticalWeight then
-		Rack:SetNetworkedBeamString("Status", "Underweight! (should be " .. tostring(OpticalWeight) .. " kg)")
+		Rack:SetNWString("Status", "Underweight! (should be " .. tostring(OpticalWeight) .. " kg)")
 		return
 	end
 
 	if not IsValid(FindNextCrate(Rack)) then
-		Rack:SetNetworkedBeamString("Status", "Can't find ammo!")
+		Rack:SetNWString("Status", "Can't find ammo!")
 		return
 	end
 
-	Rack:SetNetworkedBeamString("Status", "")
+	Rack:SetNWString("Status", "")
 
 end
 
@@ -478,7 +478,7 @@ function ENT:GetReloadTime( NextMissile )
 	local DelayMult = (ReloadMult - (ReloadMult - 1) * ReloadBonus) / MagSize
 	local ReloadTime = self:GetFireDelay(NextMissile) * DelayMult
 
-	self:SetNetworkedBeamFloat(	"Reload", ReloadTime )
+	self:SetNWFloat( "Reload", ReloadTime )
 
 	return ReloadTime
 
@@ -490,7 +490,7 @@ end
 function ENT:GetFireDelay( NextMissile )
 
 	if not IsValid( NextMissile ) then
-		self:SetNetworkedBeamFloat(	"Interval",	self.LastValidFireDelay or 1 )
+		self:SetNWFloat( "Interval", self.LastValidFireDelay or 1 )
 
 		return self.LastValidFireDelay or 1
 	end
@@ -504,7 +504,7 @@ function ENT:GetFireDelay( NextMissile )
 	local Interval = ((BulletData.RoundVolume / 500) ^ 0.60) * (Gun.rofmod or 1) * (Class.rofmod or 1)
 
 	self.LastValidFireDelay = Interval
-	self:SetNetworkedBeamFloat(	"Interval", Interval )
+	self:SetNWFloat( "Interval", Interval )
 
 	return Interval
 
@@ -794,8 +794,8 @@ function ENT:Think()
 		TrimNullMissiles(self)
 		Wire_TriggerOutput(self, "Shots Left", Ammo)
 
-		self:SetNetworkedBeamString( "GunType",	self.Id )
-		self:SetNetworkedBeamInt( "Ammo", Ammo )
+		self:SetNWString( "GunType", self.Id )
+		self:SetNWInt( "Ammo", Ammo )
 
 		self:GetReloadTime(PeekMissile(self))
 		SetStatusString(self)

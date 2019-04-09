@@ -58,13 +58,13 @@ end
 
 function ENT:GetOverlayText()
 
-	local WireName 		= self:GetNWString("WireName", "")
-	local GunType 		= self:GetNetworkedBeamString("GunType")
-	local Ammo 			= self:GetNetworkedBeamInt("Ammo")
-	local FireRate 		= math.Round(self:GetNetworkedBeamFloat("Interval"), 2)
-	local Reload 		= math.Round(self:GetNetworkedBeamFloat("Reload"), 2)
-	local ReloadBonus	= math.floor(self:GetNetworkedBeamFloat("ReloadBonus") * 100)
-	local Status		= self:GetNetworkedBeamString("Status")
+	local WireName 		= self:GetNWString("WireName")
+	local GunType 		= self:GetNWString("GunType")
+	local Ammo 			= self:GetNWInt("Ammo")
+	local FireRate 		= math.Round(self:GetNWFloat("Interval"), 2)
+	local Reload 		= math.Round(self:GetNWFloat("Reload"), 2)
+	local ReloadBonus	= math.floor(self:GetNWFloat("ReloadBonus") * 100)
+	local Status		= self:GetNWString("Status")
 
 	local Text = (WireName ~= "" and "- " .. WireName .. " -\n" or "") ..
 				GunType .. " (" .. Ammo .. " left) \n" ..
