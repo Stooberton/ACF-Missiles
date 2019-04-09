@@ -191,7 +191,7 @@ local function Dud( Missile )
 	PhysObj:EnableGravity( true )
 	PhysObj:EnableMotion( true )
 
-	if HitNorm != Vector() then
+	if HitNorm ~= Vector() then
 		local Dot = CurDir:Dot(HitNorm)
 		local NewDir = CurDir - 2 * Dot * HitNorm
 		local VelMul = (0.8 + Dot * 0.7) * LastVel:Length()
@@ -219,16 +219,15 @@ local function CalcFlight( Missile )
 	local Pos = Missile.CurPos
 	local Dir = Missile.CurDir
 	local Flight = Missile.FlightTime + DeltaTime
-	local LastPos = Missile.LastPos
 	local LastVel = Missile.LastVel
-	local Speed = LastVel:Length()
+	local LastSpeed = LastVel:Length()
 
-	if Speed == 0 then
+	if LastSpeed == 0 then
 		LastVel = Dir
-		Speed = 1
+		LastSpeed = 1
 	end
 
-	Missile.LastThink = Time	
+	Missile.LastThink = Time
 
 	--Guidance calculations
 	local Guidance = Missile.Guidance:GetGuidance( Missile )
@@ -244,7 +243,7 @@ local function CalcFlight( Missile )
 
 		if LastLOS then
 			local Agility = Missile.Agility
-			local SpeedMul = math.min((Speed / DeltaTime / Missile.MinimumSpeed) ^ 3, 1)
+			local SpeedMul = math.min((LastSpeed / DeltaTime / Missile.MinimumSpeed) ^ 3, 1)
 
 			local LOSDiff = math.deg(math.acos( LastLOS:Dot(LOS) )) * 20
 			local MaxTurn = Agility * SpeedMul * 5
@@ -272,14 +271,14 @@ local function CalcFlight( Missile )
 
 		-- FOV check
 		-- ViewCone is active-seeker specific
-		if not Guidance.ViewCone or DirDiff <= Guidance.ViewCone then		
+		if not Guidance.ViewCone or DirDiff <= Guidance.ViewCone then
 			Dir = NewDir
 		end
 
 		Missile.LastLOS = LOS
 	else
 		local DirAng = Dir:Angle()
-		local AimDiff = Dir - (LastVel / Speed)
+		local AimDiff = Dir - (LastVel / LastSpeed)
 		local DiffLength = AimDiff:Length()
 
 		if DiffLength >= 0.001 then
@@ -510,7 +509,7 @@ end
 
 
 function ENT:Think()
-	
+
 	if self.Launched and not self.Exploded then
 
 		if self.Hit then
@@ -564,7 +563,7 @@ function ENT:ACF_Activate( Recalc )
 	local PhysObj = self:GetPhysicsObject()
 
 	self.ACF = self.ACF or {}
-	
+
 	if not self.ACF.Area then
 		self.ACF.Area = PhysObj:GetSurfaceArea() * 6.45
 	end
@@ -578,7 +577,7 @@ function ENT:ACF_Activate( Recalc )
 	local Percent = 1
 
 	if Recalc and self.ACF.Health and self.ACF.MaxHealth then
-		Percent = self.ACF.Health/self.ACF.MaxHealth
+		Percent = self.ACF.Health / self.ACF.MaxHealth
 	end
 
 	self.ACF.Health = Health * Percent
@@ -597,7 +596,7 @@ end
 
 function ENT:ACF_OnDamage( Entity , Energy , FrArea , Angle , Inflictor )
 
-	if self.Detonated or self.DisableDamage then 
+	if self.Detonated or self.DisableDamage then
 		return { Damage = 0, Overkill = 1, Loss = 0, Kill = false }
 	end
 

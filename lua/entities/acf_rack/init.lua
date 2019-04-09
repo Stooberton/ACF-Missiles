@@ -3,7 +3,7 @@
 AddCSLuaFile( "shared.lua" )
 AddCSLuaFile( "cl_init.lua" )
 
-include('shared.lua')
+include("shared.lua")
 
 
 
@@ -145,7 +145,7 @@ local function AddMissile( Rack )
 	timer.Simple(0.02, function()
 		if not IsValid(Missile) then return end
 
-		local Attach, Muzzle = Rack:GetMuzzle(Index, Missile)
+		local _, Muzzle = Rack:GetMuzzle(Index, Missile)
 
 		if IsValid(Rack:GetParent()) then
 			Missile:SetPos(Muzzle.Pos)
@@ -286,7 +286,7 @@ local function FireMissile( Rack )
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
-			local Attach, Muzzle = Rack:GetMuzzle(Index - 1, Missile)
+			local _, Muzzle = Rack:GetMuzzle(Index - 1, Missile)
 
 			local MuzzlePos = Muzzle.Pos
 			local MuzzleVec = Muzzle.Ang:Forward()
@@ -338,7 +338,7 @@ local function FireMissile( Rack )
 			Missile:Launch()
 
 			MuzzleEffect( Rack )
-			SetLoadedWeight(Rack)			
+			SetLoadedWeight(Rack)
 
 			Rack:SetNetworkedBeamInt("Ammo", #Rack.Missiles)
 
@@ -459,9 +459,9 @@ end
 
 local function ACF_Rack_OnPhysgunDrop( Player, Ent )
 
-    if Ent:GetClass() == "acf_rack" then
-        timer.Simple(0.01, function() if IsValid(Ent) then SetLoadedWeight(Ent) end end)
-    end
+	if Ent:GetClass() == "acf_rack" then
+		timer.Simple(0.01, function() if IsValid(Ent) then SetLoadedWeight(Ent) end end)
+	end
 
 end
 
@@ -539,7 +539,7 @@ function ENT:Initialize()
 	}
 
 	self.Inaccuracy = 1
-	
+
 	self.Inputs = WireLib.CreateSpecialInputs( self, { "Fire",      "Reload",   "Target Pos",   "Target Ent" },
 													 { "NORMAL",    "NORMAL",   "VECTOR",       "ENTITY"    } )
 
@@ -574,12 +574,12 @@ function ENT:ACF_Activate( Recalc )
 		self.ACF.Volume = PhysObj:GetVolume() * 16.38
 	end
 
-	local Armour = self.CustomArmour or (EmptyMass*1000 / self.ACF.Area / 0.78) --So we get the equivalent thickness of that prop in mm if all it's weight was a steel plate
+	local Armour = self.CustomArmour or (EmptyMass * 1000 / self.ACF.Area / 0.78) --So we get the equivalent thickness of that prop in mm if all it's weight was a steel plate
 	local Health = self.ACF.Volume / ACF.Threshold								--Setting the threshold of the prop Area gone
 	local Percent = 1
 
 	if Recalc and self.ACF.Health and self.ACF.MaxHealth then
-		Percent = self.ACF.Health/self.ACF.MaxHealth
+		Percent = self.ACF.Health / self.ACF.MaxHealth
 	end
 
 	self.ACF.Health = Health * Percent
