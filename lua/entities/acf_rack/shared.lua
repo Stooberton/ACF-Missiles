@@ -43,7 +43,7 @@ local function GetMunitionAngPos( Rack, Missile, Attach, AttachName )
 		Attachment.Pos = Attachment.Pos + AttachOffset + AttachDir * Offset
 	else
 		if #Rack:GetAttachments() ~= 1 then
-			Offset = gun.modeldiameter or gun.caliber * 2
+			Offset = Gun.modeldiameter or Gun.caliber * 2
 		end
 
 		Attachment.Pos =  MountPoint.offset + MountPoint.scaledir * Offset
