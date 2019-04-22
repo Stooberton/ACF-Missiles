@@ -34,19 +34,22 @@ local function GetMunitionAngPos( Rack, Missile, Attach, AttachName )
 
 	local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
 	local MountPoint = RackData.mountpoints[AttachName] or { offset = Vector(), scaledir = Vector(0, 0, -1) }
+	--local AttachPos = Rack:WorldToLocal(Attachment.Pos)
 
-	if not IsValid(Rack:GetParent()) then
-		local RackPos = Rack:GetPos()
-		local AttachOffset = Rack:LocalToWorld(MountPoint.offset) - RackPos
-		local AttachDir = Rack:LocalToWorld(MountPoint.scaledir) - RackPos
+	--if IsValid(Rack:GetParent()) and next(Rack:GetAttachments(), 1) then
+		--Offset = Gun.modeldiameter or Gun.caliber * 2
+	--end
 
-		Attachment.Pos = Attachment.Pos + AttachOffset + AttachDir * Offset
+	--Attachment.Pos = AttachPos + MountPoint.offset + MountPoint.scaledir * Offset
+
+	if IsValid(Rack:GetParent()) then
+		print("Parented Pre", Attachment.Pos + MountPoint.offset + MountPoint.scaledir * Offset)
+		--Attachment.Pos = Attachment.Pos + MountPoint.offset + MountPoint.scaledir * Offset
+		Attachment.Ang = Rack:GetAngles()
+		--print("Parented", Attachment.Pos)
 	else
-		if #Rack:GetAttachments() ~= 1 then
-			Offset = Gun.modeldiameter or Gun.caliber * 2
-		end
-
-		Attachment.Pos =  MountPoint.offset + MountPoint.scaledir * Offset
+		Attachment.Pos = Rack:WorldToLocal(Attachment.Pos + MountPoint.offset + MountPoint.scaledir * Offset)
+		print("Not Parented", Attachment.Pos)
 	end
 
 	return Attachment
@@ -86,22 +89,22 @@ end
 
 function ENT:GetMuzzle( Shot, Missile )
 
-	local Index = (Shot or 0) + 1
-	local TryMissile = "missile" .. Index
+	local TryMissile = "missile" .. (Shot or 0) + 1
 	local Attach = self:LookupAttachment(TryMissile)
 
-	if Attach ~= 0 then return Attach, GetMunitionAngPos(self, Missile, Attach, TryMissile) end
+	print(Shot, TryMissile)
+	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, TryMissile) end
 
 	TryMissile = "missile1"
 	Attach = self:LookupAttachment(TryMissile)
 
-	if Attach ~= 0 then return Attach, GetMunitionAngPos(self, Missile, Attach, TryMissile) end
+	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, TryMissile) end
 
 	TryMissile = "muzzle"
 	Attach = self:LookupAttachment(TryMissile)
 
-	if Attach ~= 0 then return Attach, GetMunitionAngPos(self, Missile, Attach, TryMissile) end
+	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, TryMissile) end
 
-	return 0, { Pos = self:GetPos(), Ang = self:GetAngles() }
+	return { Pos = self:GetPos(), Ang = self:GetAngles() }
 
 end

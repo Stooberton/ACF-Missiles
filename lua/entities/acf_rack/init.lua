@@ -140,25 +140,29 @@ local function AddMissile( Rack )
 	end
 
 	Missile:SetParent(Rack)
-	Missile:SetParentPhysNum(0)
+	--Missile:SetParentPhysNum(0)
 
-	timer.Simple(0.02, function()
-		if not IsValid(Missile) then return end
+	--timer.Simple(0.02, function()
+		--if not IsValid(Missile) then return end
 
-		local _, Muzzle = Rack:GetMuzzle(Index, Missile)
+		--local Muzzle = Rack:GetMuzzle(Index, Missile)
 
-		if IsValid(Rack:GetParent()) then
-			Missile:SetPos(Muzzle.Pos)
-			Missile:SetAngles(Rack:GetAngles())
-		else
-			Missile:SetPos(Rack:WorldToLocal(Muzzle.Pos))
-			Missile:SetAngles(Muzzle.Ang)
-		end
-	end)
+		--Missile:SetPos(Muzzle.Pos)
+		--Missile:SetAngles(Muzzle.Ang)
+	--end)
 
 	if Rack.HideMissile then Missile:SetNoDraw(true) end
 
 	Missile:Spawn()
+
+	--timer.Simple(0.02, function()
+		--if not IsValid(Missile) then return end
+
+		local Muzzle = Rack:GetMuzzle(Index, Missile)
+
+		Missile:SetPos(Muzzle.Pos)
+		Missile:SetAngles(Muzzle.Ang)
+	--end)
 
 	Rack:EmitSound( "acf_extra/tankfx/resupply_single.wav", 500, 100 )
 
@@ -286,9 +290,7 @@ local function FireMissile( Rack )
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
-			local _, Muzzle = Rack:GetMuzzle(Index - 1, Missile)
-
-			local MuzzlePos = Muzzle.Pos
+			local Muzzle = Rack:GetMuzzle(Index - 1, Missile)
 			local MuzzleVec = Muzzle.Ang:Forward()
 
 			local ConeAng = math.tan(math.rad(GetInaccuracy(Rack)))
@@ -311,13 +313,8 @@ local function FireMissile( Rack )
 			local BulletData = Missile.BulletData
 			local BulletSpeed = BulletData.MuzzleVel or Missile.MinimumSpeed or 1
 
-			if not IsValid(Rack:GetParent()) then
-				BulletData.Pos = MuzzlePos
-				BulletData.Flight = ShootVec * BulletSpeed
-			else
-				BulletData.Pos = Rack:LocalToWorld(MuzzlePos)
-				BulletData.Flight = (Rack:GetAngles():Forward() + Spread):GetNormalized() * BulletSpeed
-			end
+			BulletData.Pos = Rack:LocalToWorld(Muzzle.Pos)
+			BulletData.Flight = ShootVec * BulletSpeed
 
 			if Missile.RackModelApplied then
 				Missile:SetModelEasy( ACF_GetGunValue(BulletData.Id, "model") )
