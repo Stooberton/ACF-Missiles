@@ -139,30 +139,14 @@ local function AddMissile( Rack )
 		Missile.RackModelApplied = true
 	end
 
-	Missile:SetParent(Rack)
-	--Missile:SetParentPhysNum(0)
-
-	--timer.Simple(0.02, function()
-		--if not IsValid(Missile) then return end
-
-		--local Muzzle = Rack:GetMuzzle(Index, Missile)
-
-		--Missile:SetPos(Muzzle.Pos)
-		--Missile:SetAngles(Muzzle.Ang)
-	--end)
-
-	if Rack.HideMissile then Missile:SetNoDraw(true) end
+	local Muzzle = Rack:GetMuzzle(Index, Missile)
 
 	Missile:Spawn()
+	Missile:SetParent(Rack)
+	Missile:SetPos(Muzzle.Pos)
+	Missile:SetAngles(Muzzle.Ang)
 
-	--timer.Simple(0.02, function()
-		--if not IsValid(Missile) then return end
-
-		local Muzzle = Rack:GetMuzzle(Index, Missile)
-
-		Missile:SetPos(Muzzle.Pos)
-		Missile:SetAngles(Muzzle.Ang)
-	--end)
+	if Rack.HideMissile then Missile:SetNoDraw(true) end
 
 	Rack:EmitSound( "acf_extra/tankfx/resupply_single.wav", 500, 100 )
 
