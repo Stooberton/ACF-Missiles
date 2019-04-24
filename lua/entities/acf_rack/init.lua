@@ -237,7 +237,7 @@ local function CheckLegal( Rack )
 	if Rack:GetPhysicsObject():GetMass() < (Rack.LegalWeight or Rack.Mass) then return false end
 
 	-- update the acfphysparent
-	ACF_GetPhysicalParent(Rack)
+	ACF_GetPhysicalAncestor(Rack)
 
 	return Rack.acfphysparent:IsSolid()
 
