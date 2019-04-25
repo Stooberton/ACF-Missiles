@@ -57,28 +57,6 @@ end
 
 
 
-local function CanReload( Rack )
-
-	if #Rack.Missiles >= Rack.MagSize then return false end
-	if not IsValid(FindNextCrate(Rack)) then return false end
-	if Rack.NextFire < 1 then return false end
-
-	return true
-
-end
-
-
-
-
-local function MuzzleEffect( Missile )
-
-	Missile:EmitSound( "phx/epicmetal_hard.wav", 500, 100 )
-
-end
-
-
-
-
 local function SetLoadedWeight( Rack )
 
 	local PhysObj = Rack:GetPhysicsObject()
@@ -178,38 +156,28 @@ end
 
 
 
-local function LoadAmmo( Rack )
+local function Reload( Rack )
 
-	if not CanReload(Rack) then return false end
+	if not Rack.Ready and IsValid(PeekMissile(Rack)) then return end
+	if #Rack.Missiles >= Rack.MagSize then return false end
+	if not IsValid(FindNextCrate(Rack)) then return false end
+	if Rack.NextFire < 1 then return false end
 
 	local Missile = AddMissile(Rack)
 
 	TrimNullMissiles(Rack)
+
 	Rack:SetNWInt( "Ammo", #Rack.Missiles )
 
 	Rack.NextFire = 0
 	Rack.PostReloadWait = CurTime() + 5
 	Rack.WaitFunction = Rack.GetReloadTime
-
 	Rack.Ready = false
 	Rack.ReloadTime = IsValid(Missile) and Rack:GetReloadTime(Missile) or 1
 
 	Wire_TriggerOutput(Rack, "Ready", 0)
 
-	Rack:Think()
-
-	return true
-
-end
-
-
-
-
-local function Reload( Rack )
-
-	if Rack.Ready or not IsValid(PeekMissile(Rack)) then
-		LoadAmmo(Rack)
-	end
+	--Rack:Think()
 
 end
 
@@ -249,15 +217,6 @@ end
 
 
 
-local function GetInaccuracy( Rack )
-
-	return Rack.Inaccuracy * ACF.GunInaccuracyScale
-
-end
-
-
-
-
 local function FireMissile( Rack )
 
 	if CheckLegal(Rack) and Rack.Ready and Rack.PostReloadWait < CurTime() then
@@ -277,7 +236,7 @@ local function FireMissile( Rack )
 			local Muzzle = Rack:GetMuzzle(Missile, Index - 1)
 			local MuzzleVec = Muzzle.Ang:Forward()
 
-			local ConeAng = math.tan(math.rad(GetInaccuracy(Rack)))
+			local ConeAng = math.tan(math.rad(Rack.Inaccuracy * ACF.GunInaccuracyScale))
 			local RandDirection = (Rack:GetUp() * math.Rand(-1, 1) + Rack:GetRight() * math.Rand(-1, 1)):GetNormalized()
 			local Spread = RandDirection * ConeAng * (math.random() ^ (1 / math.Clamp(ACF.GunInaccuracyBias, 0.5, 4)))
 			local ShootVec = (MuzzleVec + Spread):GetNormalized()
@@ -317,10 +276,9 @@ local function FireMissile( Rack )
 
 			Missile:DoFlight(BulletData.Pos, ShootVec)
 			Missile:Launch()
+			Missile:EmitSound("phx/epicmetal_hard.wav", 500, 100)
 
-			MuzzleEffect( Rack )
 			SetLoadedWeight(Rack)
-
 			Rack:SetNWInt("Ammo", #Rack.Missiles)
 
 		else
