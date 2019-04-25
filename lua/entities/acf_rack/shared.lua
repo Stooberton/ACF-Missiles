@@ -2,52 +2,39 @@
 
 DEFINE_BASECLASS("base_wire_entity")
 
-
-
-
 ENT.Type        	= "anim"
-ENT.Base        	= "base_wire_entity"
 ENT.PrintName 		= "ACF Rack"
 ENT.Author 			= "Bubbus"
 ENT.Contact 		= "splambob@googlemail.com"
 ENT.Purpose		 	= "Because launch tubes aren't cool enough."
 ENT.Instructions 	= "Point towards face for removal of face.  Point away from face for instant fake tan (then removal of face)."
-
 ENT.Spawnable 		= false
 ENT.AdminOnly		= false
 ENT.AdminSpawnable 	= false
+ENT.WireDebugName 	= "ACF Rack"
 
 
 
 
 local function GetMunitionAngPos( Rack, Missile, Attach, AttachName )
 
+	local Parent = Rack:GetParent()
+
+	Rack:SetParent(nil)
+
 	local Attachment = Rack:GetAttachment(Attach)
-	local Guns = list.Get("ACFEnts").Guns
-	local Gun = Guns[Missile.BulletData.Id]
-
-	if not Gun then return Attachment end
-
+	local Gun = list.Get("ACFEnts").Guns[Missile.BulletData.Id]
 	local RackData = ACF.Weapons.Rack[Rack.Id]
 
-	if not RackData then return Attachment end
+	if Gun and RackData then
+		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
+		local MountPoint = RackData.mountpoints[AttachName] or { offset = Vector(), scaledir = Vector(0, 0, -1) }
 
-	local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
-	local MountPoint = RackData.mountpoints[AttachName] or { offset = Vector(), scaledir = Vector(0, 0, -1) }
-
-	if not IsValid(Rack:GetParent()) then
-		local RackPos = Rack:GetPos()
-		local AttachOffset = Rack:LocalToWorld(MountPoint.offset) - RackPos
-		local AttachDir = Rack:LocalToWorld(MountPoint.scaledir) - RackPos
-
-		Attachment.Pos = Attachment.Pos + AttachOffset + AttachDir * Offset
-	else
-		if #Rack:GetAttachments() ~= 1 then
-			Offset = Gun.modeldiameter or Gun.caliber * 2
-		end
-
-		Attachment.Pos =  MountPoint.offset + MountPoint.scaledir * Offset
+		Attachment.Pos = Rack:WorldToLocal(Attachment.Pos) + MountPoint.offset + MountPoint.scaledir * Offset
+		Attachment.Ang = Rack:GetAngles()
 	end
+
+	Rack:SetParent(Parent)
 
 	return Attachment
 
@@ -84,24 +71,23 @@ end
 
 
 
-function ENT:GetMuzzle( Shot, Missile )
+function ENT:GetMuzzle( Missile, Shot )
 
-	local Index = (Shot or 0) + 1
-	local TryMissile = "missile" .. Index
-	local Attach = self:LookupAttachment(TryMissile)
+	local AttachName = "missile" .. (Shot or 0) + 1
+	local Attach = self:LookupAttachment(AttachName)
 
-	if Attach ~= 0 then return Attach, GetMunitionAngPos(self, Missile, Attach, TryMissile) end
+	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, AttachName) end
 
-	TryMissile = "missile1"
-	Attach = self:LookupAttachment(TryMissile)
+	AttachName = "missile1"
+	Attach = self:LookupAttachment(AttachName)
 
-	if Attach ~= 0 then return Attach, GetMunitionAngPos(self, Missile, Attach, TryMissile) end
+	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, AttachName) end
 
-	TryMissile = "muzzle"
-	Attach = self:LookupAttachment(TryMissile)
+	AttachName = "muzzle"
+	Attach = self:LookupAttachment(AttachName)
 
-	if Attach ~= 0 then return Attach, GetMunitionAngPos(self, Missile, Attach, TryMissile) end
+	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, AttachName) end
 
-	return 0, { Pos = self:GetPos(), Ang = self:GetAngles() }
+	return { Pos = self:GetPos(), Ang = self:GetAngles() }
 
 end

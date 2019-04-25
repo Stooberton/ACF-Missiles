@@ -57,33 +57,11 @@ end
 
 
 
-local function CanReload( Rack )
-
-	if #Rack.Missiles >= Rack.MagSize then return false end
-	if not IsValid(FindNextCrate(Rack)) then return false end
-	if Rack.NextFire < 1 then return false end
-
-	return true
-
-end
-
-
-
-
-local function MuzzleEffect( Missile )
-
-	Missile:EmitSound( "phx/epicmetal_hard.wav", 500, 100 )
-
-end
-
-
-
-
 local function SetLoadedWeight( Rack )
 
 	local PhysObj = Rack:GetPhysicsObject()
 
-	Rack.LegalWeight = Rack.Mass
+	Rack.ACFLegalMass = Rack.EmptyMass
 
 	TrimNullMissiles(Rack)
 
@@ -91,7 +69,7 @@ local function SetLoadedWeight( Rack )
 		local Missile = Rack.Missiles[i]
 		local PhysMissile = Missile:GetPhysicsObject()
 
-		Rack.LegalWeight = Rack.LegalWeight + Missile.RoundWeight
+		Rack.ACFLegalMass = Rack.ACFLegalMass + Missile.RoundWeight
 
 		-- Will result in slightly heavier rack but is probably a good idea to have some mass for any damage calcs.
 		if IsValid(PhysMissile) then
@@ -100,7 +78,7 @@ local function SetLoadedWeight( Rack )
 	end
 
 	if IsValid(PhysObj) then
-		PhysObj:SetMass( Rack.LegalWeight )
+		PhysObj:SetMass( Rack.ACFLegalMass )
 	end
 
 end
@@ -139,26 +117,15 @@ local function AddMissile( Rack )
 		Missile.RackModelApplied = true
 	end
 
-	Missile:SetParent(Rack)
-	Missile:SetParentPhysNum(0)
-
-	timer.Simple(0.02, function()
-		if not IsValid(Missile) then return end
-
-		local _, Muzzle = Rack:GetMuzzle(Index, Missile)
-
-		if IsValid(Rack:GetParent()) then
-			Missile:SetPos(Muzzle.Pos)
-			Missile:SetAngles(Rack:GetAngles())
-		else
-			Missile:SetPos(Rack:WorldToLocal(Muzzle.Pos))
-			Missile:SetAngles(Muzzle.Ang)
-		end
-	end)
-
-	if Rack.HideMissile then Missile:SetNoDraw(true) end
+	local Muzzle = Rack:GetMuzzle(Missile, Index)
 
 	Missile:Spawn()
+	Missile:SetParent(Rack)
+	Missile:SetParentPhysNum(0)
+	Missile:SetPos(Muzzle.Pos)
+	Missile:SetAngles(Muzzle.Ang)
+
+	if Rack.HideMissile then Missile:SetNoDraw(true) end
 
 	Rack:EmitSound( "acf_extra/tankfx/resupply_single.wav", 500, 100 )
 
@@ -179,9 +146,9 @@ local function PeekMissile( Rack )
 
 	TrimNullMissiles(Rack)
 
-	local Index = #Rack.Missiles
+	if not next(Rack.Missiles) then return false end
 
-	if Index == 0 then return false end
+	local Index = #Rack.Missiles
 
 	return Rack.Missiles[Index], Index
 
@@ -190,38 +157,28 @@ end
 
 
 
-local function LoadAmmo( Rack )
+local function Reload( Rack )
 
-	if not CanReload(Rack) then return false end
+	if not Rack.Ready and IsValid(PeekMissile(Rack)) then return end
+	if #Rack.Missiles >= Rack.MagSize then return false end
+	if not IsValid(FindNextCrate(Rack)) then return false end
+	if Rack.NextFire < 1 then return false end
 
 	local Missile = AddMissile(Rack)
 
 	TrimNullMissiles(Rack)
+
 	Rack:SetNWInt( "Ammo", #Rack.Missiles )
 
 	Rack.NextFire = 0
 	Rack.PostReloadWait = CurTime() + 5
 	Rack.WaitFunction = Rack.GetReloadTime
-
 	Rack.Ready = false
 	Rack.ReloadTime = IsValid(Missile) and Rack:GetReloadTime(Missile) or 1
 
 	Wire_TriggerOutput(Rack, "Ready", 0)
 
-	Rack:Think()
-
-	return true
-
-end
-
-
-
-
-local function Reload( Rack )
-
-	if Rack.Ready or not IsValid(PeekMissile(Rack)) then
-		LoadAmmo(Rack)
-	end
+	--Rack:Think()
 
 end
 
@@ -230,16 +187,10 @@ end
 
 local function CheckLegal( Rack )
 
-	--make sure it's not invisible to traces
-	if not Rack:IsSolid() then return false end
+	-- Update the ancestor of the rack
+	Rack.Physical = ACF_GetAncestor(Rack)
 
-	-- make sure weight is not below stock
-	if Rack:GetPhysicsObject():GetMass() < (Rack.LegalWeight or Rack.Mass) then return false end
-
-	-- update the acfphysparent
-	ACF_GetPhysicalAncestor(Rack)
-
-	return Rack.acfphysparent:IsSolid()
+	return ACF_IsLegal(Rack) and Rack.Physical:IsSolid()
 
 end
 
@@ -261,21 +212,12 @@ end
 
 
 
-local function GetInaccuracy( Rack )
-
-	return Rack.Inaccuracy * ACF.GunInaccuracyScale
-
-end
-
-
-
-
 local function FireMissile( Rack )
 
 	if CheckLegal(Rack) and Rack.Ready and Rack.PostReloadWait < CurTime() then
 
 		local NextMissile = PeekMissile(Rack)
-		local CanFire = NextMissile and hook.Run("ACF_FireShell", Rack, NextMissile.BulletData ) or true
+		local CanFire = NextMissile and hook.Run("ACF_FireShell", Rack, NextMissile.BulletData) or true
 
 		if not CanFire then return end
 
@@ -286,12 +228,10 @@ local function FireMissile( Rack )
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
-			local _, Muzzle = Rack:GetMuzzle(Index - 1, Missile)
-
-			local MuzzlePos = Muzzle.Pos
+			local Muzzle = Rack:GetMuzzle(Missile, Index - 1)
 			local MuzzleVec = Muzzle.Ang:Forward()
 
-			local ConeAng = math.tan(math.rad(GetInaccuracy(Rack)))
+			local ConeAng = math.tan(math.rad(Rack.Inaccuracy * ACF.GunInaccuracyScale))
 			local RandDirection = (Rack:GetUp() * math.Rand(-1, 1) + Rack:GetRight() * math.Rand(-1, 1)):GetNormalized()
 			local Spread = RandDirection * ConeAng * (math.random() ^ (1 / math.Clamp(ACF.GunInaccuracyBias, 0.5, 4)))
 			local ShootVec = (MuzzleVec + Spread):GetNormalized()
@@ -311,13 +251,8 @@ local function FireMissile( Rack )
 			local BulletData = Missile.BulletData
 			local BulletSpeed = BulletData.MuzzleVel or Missile.MinimumSpeed or 1
 
-			if not IsValid(Rack:GetParent()) then
-				BulletData.Pos = MuzzlePos
-				BulletData.Flight = ShootVec * BulletSpeed
-			else
-				BulletData.Pos = Rack:LocalToWorld(MuzzlePos)
-				BulletData.Flight = (Rack:GetAngles():Forward() + Spread):GetNormalized() * BulletSpeed
-			end
+			BulletData.Pos = Rack:LocalToWorld(Muzzle.Pos)
+			BulletData.Flight = ShootVec * BulletSpeed
 
 			if Missile.RackModelApplied then
 				Missile:SetModelEasy( ACF_GetGunValue(BulletData.Id, "model") )
@@ -336,10 +271,9 @@ local function FireMissile( Rack )
 
 			Missile:DoFlight(BulletData.Pos, ShootVec)
 			Missile:Launch()
+			Missile:EmitSound("phx/epicmetal_hard.wav", 500, 100)
 
-			MuzzleEffect( Rack )
 			SetLoadedWeight(Rack)
-
 			Rack:SetNWInt("Ammo", #Rack.Missiles)
 
 		else
@@ -438,7 +372,7 @@ local function SetStatusString( Rack )
 		return
 	end
 
-	local OpticalWeight = Rack.LegalWeight or Rack.Mass
+	local OpticalWeight = Rack.ACFLegalMass or Rack.EmptyMass
 
 	if PhysObj:GetMass() < OpticalWeight then
 		Rack:SetNWString("Status", "Underweight! (should be " .. tostring(OpticalWeight) .. " kg)")
@@ -540,15 +474,11 @@ function ENT:Initialize()
 
 	self.Inaccuracy = 1
 
-	self.Inputs = WireLib.CreateSpecialInputs( self, { "Fire",      "Reload",   "Target Pos",   "Target Ent" },
-													 { "NORMAL",    "NORMAL",   "VECTOR",       "ENTITY"    } )
-
-	self.Outputs = WireLib.CreateSpecialOutputs( self, 	{ "Ready",	"Entity",	"Shots Left",  "Position",  "Target" },
-														{ "NORMAL",	"ENTITY",	"NORMAL",      "VECTOR",    "ENTITY" } )
+	self.Inputs = WireLib.CreateInputs(self, { "Fire", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]" })
+	self.Outputs = WireLib.CreateOutputs(self, { "Ready", "Entity [ENTITY]", "Shots Left", "Position [VECTOR]", "Target [ENTITY]" })
 
 	Wire_TriggerOutput(self, "Entity", self)
 	Wire_TriggerOutput(self, "Ready", 1)
-	self.WireDebugName = "ACF Rack"
 
 	self.Missiles = {}
 
@@ -561,7 +491,7 @@ end
 
 function ENT:ACF_Activate( Recalc )
 
-	local EmptyMass = self.RoundWeight or self.Mass or 10
+	local EmptyMass = self.RoundWeight or self.EmptyMass or 10
 	local PhysObj = self:GetPhysicsObject()
 
 	self.ACF = self.ACF or {}
@@ -587,7 +517,7 @@ function ENT:ACF_Activate( Recalc )
 	self.ACF.Armour = Armour * (0.5 + Percent * 0.5)
 	self.ACF.MaxArmour = Armour
 	self.ACF.Type = nil
-	self.ACF.Mass = self.Mass
+	self.ACF.Mass = self.EmptyMass
 	self.ACF.Density = PhysObj:GetMass() * 1000 / self.ACF.Volume
 	self.ACF.Type = "Prop"
 
@@ -806,24 +736,23 @@ function ENT:Think()
 
 	self.NextFire = math.min(self.NextFire + (Time - self.LastThink) / self:WaitFunction(PeekMissile(self)), 1)
 
-	if self.NextFire >= 1 and Ammo > 0 and Ammo <= self.MagSize then
-		self.Ready = true
-		Wire_TriggerOutput(self, "Ready", 1)
+	if self.NextFire >= 1 then
+		if Ammo > 0 then
+			self.Ready = true
+			Wire_TriggerOutput(self, "Ready", 1)
 
-		if self.Firing then
-			self.ReloadTime = nil
-			FireMissile(self)
-		elseif self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 and CanReload(self) then
-			self.ReloadTime = nil
-			Reload(self)
-		elseif self.ReloadTime and self.ReloadTime > 1 then
-			self:EmitSound( "acf_extra/airfx/weapon_select.wav", 500, 100 )
-			self.ReloadTime = nil
-		end
-	elseif self.NextFire >= 1 and Ammo == 0 then
-		if self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 and CanReload(self) then
-			self.ReloadTime = nil
-			Reload(self)
+			if self.Firing then
+				FireMissile(self)
+			elseif self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 then
+				Reload(self)
+			elseif self.ReloadTime and self.ReloadTime > 1 then
+				self:EmitSound("acf_extra/airfx/weapon_select.wav", 500, 100)
+				self.ReloadTime = nil
+			end
+		else
+			if self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 then
+				Reload(self)
+			end
 		end
 	end
 
@@ -866,13 +795,13 @@ function MakeACF_Rack (Owner, Pos, Angle, Id, UpdateRack)
 
 	local GunDef = List[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
 
-	Rack.MinCaliber  = GunDef.mincaliber
-	Rack.MaxCaliber  = GunDef.maxcaliber
-	Rack.caliber	 = GunDef.caliber
-	Rack.Model		 = GunDef.model
-	Rack.Mass		 = GunDef.weight
-	Rack.LegalWeight = Rack.Mass
-	Rack.Class		 = GunDef.gunclass
+	Rack.MinCaliber   = GunDef.mincaliber
+	Rack.MaxCaliber   = GunDef.maxcaliber
+	Rack.caliber	  = GunDef.caliber
+	Rack.Model		  = GunDef.model
+	Rack.EmptyMass	  = GunDef.weight
+	Rack.ACFLegalMass = Rack.EmptyMass
+	Rack.Class		  = GunDef.gunclass
 
 	-- Custom BS for karbine. Per Rack ROF.
 	Rack.PGRoFmod = GunDef.rofmod and math.max(0, GunDef.rofmod) or 1
@@ -907,7 +836,7 @@ function MakeACF_Rack (Owner, Pos, Angle, Id, UpdateRack)
 	local PhysRack = Rack:GetPhysicsObject()
 
 	if IsValid(PhysRack) then
-		PhysRack:SetMass(Rack.Mass)
+		PhysRack:SetMass(Rack.EmptyMass)
 	end
 
 	hook.Call("ACF_RackCreate", nil, Rack)
