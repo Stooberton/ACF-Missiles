@@ -10,7 +10,6 @@ ENT.Purpose		 	= "Because launch tubes aren't cool enough."
 ENT.Instructions 	= "Point towards face for removal of face.  Point away from face for instant fake tan (then removal of face)."
 ENT.Spawnable 		= false
 ENT.AdminOnly		= false
-ENT.AdminSpawnable 	= false
 ENT.WireDebugName 	= "ACF Rack"
 
 
