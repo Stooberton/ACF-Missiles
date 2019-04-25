@@ -20,17 +20,13 @@ local function GetMunitionAngPos( Rack, Missile, Attach, AttachName )
 
 	local Parent = Rack:GetParent()
 
-	Rack:SetParent()
+	Rack:SetParent(nil)
 
 	local Attachment = Rack:GetAttachment(Attach)
 	local Gun = list.Get("ACFEnts").Guns[Missile.BulletData.Id]
-	local RackData
+	local RackData = ACF.Weapons.Rack[Rack.Id]
 
-	if Gun then
-		RackData = ACF.Weapons.Rack[Rack.Id]
-	end
-
-	if RackData then
+	if Gun and RackData then
 		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
 		local MountPoint = RackData.mountpoints[AttachName] or { offset = Vector(), scaledir = Vector(0, 0, -1) }
 
