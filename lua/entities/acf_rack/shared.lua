@@ -79,7 +79,7 @@ end
 
 
 
-function ENT:GetMuzzle( Shot, Missile )
+function ENT:GetMuzzle( Missile, Shot )
 
 	local AttachName = "missile" .. (Shot or 0) + 1
 	local Attach = self:LookupAttachment(AttachName)

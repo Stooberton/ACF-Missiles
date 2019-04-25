@@ -139,7 +139,7 @@ local function AddMissile( Rack )
 		Missile.RackModelApplied = true
 	end
 
-	local Muzzle = Rack:GetMuzzle(Index, Missile)
+	local Muzzle = Rack:GetMuzzle(Missile, Index)
 
 	Missile:Spawn()
 	Missile:SetParent(Rack)
@@ -274,7 +274,7 @@ local function FireMissile( Rack )
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
-			local Muzzle = Rack:GetMuzzle(Index - 1, Missile)
+			local Muzzle = Rack:GetMuzzle(Missile, Index - 1)
 			local MuzzleVec = Muzzle.Ang:Forward()
 
 			local ConeAng = math.tan(math.rad(GetInaccuracy(Rack)))
