@@ -121,6 +121,7 @@ local function AddMissile( Rack )
 
 	Missile:Spawn()
 	Missile:SetParent(Rack)
+	Missile:SetParentPhysNum(0)
 	Missile:SetPos(Muzzle.Pos)
 	Missile:SetAngles(Muzzle.Ang)
 
@@ -145,9 +146,9 @@ local function PeekMissile( Rack )
 
 	TrimNullMissiles(Rack)
 
-	local Index = #Rack.Missiles
+	if not next(Rack.Missiles) then return false end
 
-	if Index == 0 then return false end
+	local Index = #Rack.Missiles
 
 	return Rack.Missiles[Index], Index
 
@@ -216,7 +217,7 @@ local function FireMissile( Rack )
 	if CheckLegal(Rack) and Rack.Ready and Rack.PostReloadWait < CurTime() then
 
 		local NextMissile = PeekMissile(Rack)
-		local CanFire = NextMissile and hook.Run("ACF_FireShell", Rack, NextMissile.BulletData ) or true
+		local CanFire = NextMissile and hook.Run("ACF_FireShell", Rack, NextMissile.BulletData) or true
 
 		if not CanFire then return end
 
@@ -473,15 +474,11 @@ function ENT:Initialize()
 
 	self.Inaccuracy = 1
 
-	self.Inputs = WireLib.CreateSpecialInputs( self, { "Fire",      "Reload",   "Target Pos",   "Target Ent" },
-													 { "NORMAL",    "NORMAL",   "VECTOR",       "ENTITY"    } )
-
-	self.Outputs = WireLib.CreateSpecialOutputs( self, 	{ "Ready",	"Entity",	"Shots Left",  "Position",  "Target" },
-														{ "NORMAL",	"ENTITY",	"NORMAL",      "VECTOR",    "ENTITY" } )
+	self.Inputs = WireLib.CreateInputs(self, { "Fire", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]" })
+	self.Outputs = WireLib.CreateOutputs(self, { "Ready", "Entity [ENTITY]", "Shots Left", "Position [VECTOR]", "Target [ENTITY]" })
 
 	Wire_TriggerOutput(self, "Entity", self)
 	Wire_TriggerOutput(self, "Ready", 1)
-	self.WireDebugName = "ACF Rack"
 
 	self.Missiles = {}
 
