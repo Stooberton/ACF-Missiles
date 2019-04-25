@@ -736,24 +736,23 @@ function ENT:Think()
 
 	self.NextFire = math.min(self.NextFire + (Time - self.LastThink) / self:WaitFunction(PeekMissile(self)), 1)
 
-	if self.NextFire >= 1 and Ammo > 0 and Ammo <= self.MagSize then
-		self.Ready = true
-		Wire_TriggerOutput(self, "Ready", 1)
+	if self.NextFire >= 1 then
+		if Ammo > 0 then
+			self.Ready = true
+			Wire_TriggerOutput(self, "Ready", 1)
 
-		if self.Firing then
-			self.ReloadTime = nil
-			FireMissile(self)
-		elseif self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 and CanReload(self) then
-			self.ReloadTime = nil
-			Reload(self)
-		elseif self.ReloadTime and self.ReloadTime > 1 then
-			self:EmitSound( "acf_extra/airfx/weapon_select.wav", 500, 100 )
-			self.ReloadTime = nil
-		end
-	elseif self.NextFire >= 1 and Ammo == 0 then
-		if self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 and CanReload(self) then
-			self.ReloadTime = nil
-			Reload(self)
+			if self.Firing then
+				FireMissile(self)
+			elseif self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 then
+				Reload(self)
+			elseif self.ReloadTime and self.ReloadTime > 1 then
+				self:EmitSound("acf_extra/airfx/weapon_select.wav", 500, 100)
+				self.ReloadTime = nil
+			end
+		else
+			if self.Inputs.Reload and self.Inputs.Reload.Value ~= 0 then
+				Reload(self)
+			end
 		end
 	end
 
