@@ -523,7 +523,7 @@ function ENT:Think()
 		if self.FirstThink then
 			self.FirstThink = nil
 			self.LastThink = Time - self.ThinkDelay
-			self.LastVel = self.Launcher.acfphysparent:GetVelocity() * self.ThinkDelay
+			self.LastVel = self.Launcher.Physical:GetVelocity() * self.ThinkDelay
 		end
 
 		CalcFlight(self)

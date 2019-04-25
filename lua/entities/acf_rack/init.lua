@@ -61,7 +61,7 @@ local function SetLoadedWeight( Rack )
 
 	local PhysObj = Rack:GetPhysicsObject()
 
-	Rack.LegalWeight = Rack.Mass
+	Rack.ACFLegalMass = Rack.EmptyMass
 
 	TrimNullMissiles(Rack)
 
@@ -69,7 +69,7 @@ local function SetLoadedWeight( Rack )
 		local Missile = Rack.Missiles[i]
 		local PhysMissile = Missile:GetPhysicsObject()
 
-		Rack.LegalWeight = Rack.LegalWeight + Missile.RoundWeight
+		Rack.ACFLegalMass = Rack.ACFLegalMass + Missile.RoundWeight
 
 		-- Will result in slightly heavier rack but is probably a good idea to have some mass for any damage calcs.
 		if IsValid(PhysMissile) then
@@ -78,7 +78,7 @@ local function SetLoadedWeight( Rack )
 	end
 
 	if IsValid(PhysObj) then
-		PhysObj:SetMass( Rack.LegalWeight )
+		PhysObj:SetMass( Rack.ACFLegalMass )
 	end
 
 end
@@ -186,16 +186,10 @@ end
 
 local function CheckLegal( Rack )
 
-	--make sure it's not invisible to traces
-	if not Rack:IsSolid() then return false end
+	-- Update the ancestor of the rack
+	Rack.Physical = ACF_GetAncestor(Rack)
 
-	-- make sure weight is not below stock
-	if Rack:GetPhysicsObject():GetMass() < (Rack.LegalWeight or Rack.Mass) then return false end
-
-	-- update the acfphysparent
-	ACF_GetPhysicalParent(Rack)
-
-	return Rack.acfphysparent:IsSolid()
+	return ACF_IsLegal(Rack) and Rack.Physical:IsSolid()
 
 end
 
@@ -377,7 +371,7 @@ local function SetStatusString( Rack )
 		return
 	end
 
-	local OpticalWeight = Rack.LegalWeight or Rack.Mass
+	local OpticalWeight = Rack.ACFLegalMass or Rack.EmptyMass
 
 	if PhysObj:GetMass() < OpticalWeight then
 		Rack:SetNWString("Status", "Underweight! (should be " .. tostring(OpticalWeight) .. " kg)")
@@ -500,7 +494,7 @@ end
 
 function ENT:ACF_Activate( Recalc )
 
-	local EmptyMass = self.RoundWeight or self.Mass or 10
+	local EmptyMass = self.RoundWeight or self.EmptyMass or 10
 	local PhysObj = self:GetPhysicsObject()
 
 	self.ACF = self.ACF or {}
@@ -526,7 +520,7 @@ function ENT:ACF_Activate( Recalc )
 	self.ACF.Armour = Armour * (0.5 + Percent * 0.5)
 	self.ACF.MaxArmour = Armour
 	self.ACF.Type = nil
-	self.ACF.Mass = self.Mass
+	self.ACF.Mass = self.EmptyMass
 	self.ACF.Density = PhysObj:GetMass() * 1000 / self.ACF.Volume
 	self.ACF.Type = "Prop"
 
@@ -805,13 +799,13 @@ function MakeACF_Rack (Owner, Pos, Angle, Id, UpdateRack)
 
 	local GunDef = List[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
 
-	Rack.MinCaliber  = GunDef.mincaliber
-	Rack.MaxCaliber  = GunDef.maxcaliber
-	Rack.caliber	 = GunDef.caliber
-	Rack.Model		 = GunDef.model
-	Rack.Mass		 = GunDef.weight
-	Rack.LegalWeight = Rack.Mass
-	Rack.Class		 = GunDef.gunclass
+	Rack.MinCaliber   = GunDef.mincaliber
+	Rack.MaxCaliber   = GunDef.maxcaliber
+	Rack.caliber	  = GunDef.caliber
+	Rack.Model		  = GunDef.model
+	Rack.EmptyMass	  = GunDef.weight
+	Rack.ACFLegalMass = Rack.EmptyMass
+	Rack.Class		  = GunDef.gunclass
 
 	-- Custom BS for karbine. Per Rack ROF.
 	Rack.PGRoFmod = GunDef.rofmod and math.max(0, GunDef.rofmod) or 1
@@ -846,7 +840,7 @@ function MakeACF_Rack (Owner, Pos, Angle, Id, UpdateRack)
 	local PhysRack = Rack:GetPhysicsObject()
 
 	if IsValid(PhysRack) then
-		PhysRack:SetMass(Rack.Mass)
+		PhysRack:SetMass(Rack.EmptyMass)
 	end
 
 	hook.Call("ACF_RackCreate", nil, Rack)
