@@ -1,196 +1,164 @@
+-- init.lua
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
-
 include("shared.lua")
-
 
 function ENT:Initialize()
 	if self.BulletData.Caliber == 12.0 then
-	self:SetModel( "models/missiles/glatgm/9m112.mdl" )
+		self:SetModel("models/missiles/glatgm/9m112.mdl")
 	elseif self.BulletData.Caliber > 12.0 then
-	self:SetModel( "models/missiles/glatgm/mgm51.mdl" )
+		self:SetModel("models/missiles/glatgm/mgm51.mdl")
 	else
-	self:SetModel( "models/missiles/glatgm/9m117.mdl" )
-	self:SetModelScale(self.BulletData.Caliber*10/100,0)
-
+		self:SetModel("models/missiles/glatgm/9m117.mdl")
+		self:SetModelScale(self.BulletData.Caliber * 0.1, 0)
 	end
-	self:SetMoveType(MOVETYPE_VPHYSICS);
-	self:PhysicsInit(SOLID_VPHYSICS);
-	self:SetUseType(SIMPLE_USE);
-	self:SetSolid(SOLID_VPHYSICS);
-	
-	timer.Simple(0.1,function() ParticleEffectAttach("Rocket_Smoke_Trail",4, self,1)  end)
-	self.PhysObj = self:GetPhysicsObject()
-	self.PhysObj:EnableGravity( false )
-	self.PhysObj:EnableMotion( false )
-	self.KillTime = CurTime()+20
+
+	self:SetMoveType(MOVETYPE_VPHYSICS)
+	self:PhysicsInit(SOLID_VPHYSICS)
+	self:SetUseType(SIMPLE_USE)
+	self:SetSolid(SOLID_VPHYSICS)
+
+	timer.Simple(0.1, function()
+		ParticleEffectAttach("Rocket_Smoke_Trail", 4, self, 1)
+	end)
+
+	local PhysObj = self:GetPhysicsObject()
+	PhysObj:EnableGravity(false)
+	PhysObj:EnableMotion(false)
+	self.KillTime = CurTime() + 20
 	self.Time = CurTime()
-	self.Filter = {self,self.Entity,self.Guidance}
-	for k, v in pairs( ents.FindInSphere( self.Guidance:GetPos(), 250 )   ) do
+	self.Filter = {self, self.Guidance}
+
+	for k, v in pairs(ents.FindInSphere(self.Guidance:GetPos(), 250)) do
 		if v:GetClass() == "acf_opticalcomputer" and v:CPPIGetOwner() == self.Owner then
 			self.Guidance = v
 			self.Optic = true
 		end
 	end
 
-	self.velocity = 5000 		--self.velocity of the missile per second
-	self.secondsOffset = 0.5	--seconds of forward flight to aim towards, to affect the beam-riding simulation
-	
-	
-	
-	
-	self.Sub = self.BulletData.Caliber<10 
-	if self.Sub then 
-	self.velocity = 2500
-	self.secondsOffset = 0.25
-	self.SpiralAm = (10-self.BulletData.Caliber)*0.5 -- amount of artifical spiraling for <100 shells, caliber in acf is in cm
+	self.SubCaliber = self.BulletData.Caliber < 10
+	self.Velocity = self.SubCaliber and 2500 or 5000 -- Velocity of the missile per second
+	self.SecondsOffset = self.SubCaliber and 0.25 or 0.5 -- seconds of forward flight to aim towards, to affect the beam-riding simulation
+
+	if self.SubCaliber then
+		self.SpiralAm = (10 - self.BulletData.Caliber) * 0.5 -- amount of artifical spiraling for <100 shells, caliber in acf is in cm
 	end
-	
-	
-	
-	
-	self.offsetLength = self.velocity * self.secondsOffset	--how far off the forward offset is for the targeting position
+
+	self.OffsetLength = self.Velocity * self.SecondsOffset --how far off the forward offset is for the targeting position
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 function ENT:Think()
-	if(IsValid(self)) then
-			if self.KillTime<CurTime() then
-				self:Detonate()
-			end
-			local TimeNew = CurTime()
-			
+	if not IsValid(self) then return end
 
-			
-			local d = Vector(0,0,0)
-			local dir = AngleRand()*0.01
-			local Dist = 0.01--100/10000
-			if IsValid(self.Guidance) and self.Guidance:GetPos():Distance(self:GetPos())<self.Distance then
-				local di = self.Guidance:WorldToLocalAngles((self:GetPos() - self.Guidance:GetPos()):Angle())
-				if di.p<15 and di.p>-15 and di.y<15 and di.y>-15 then
-					local glpos = self.Guidance:GetPos()+self.Guidance:GetForward()
-					if not self.Optic then
-						glpos = self.Guidance:GetAttachment(1).Pos+self.Guidance:GetForward()*20
-					end
-
-					local tr = util.QuickTrace( glpos, self.Guidance:GetForward()*(self.Guidance:GetPos():Distance(self:GetPos())+self.offsetLength), {self.Guidance,self,self.Entity})
-	--				local tr = util.QuickTrace( glpos, self.Guidance:GetForward()*99999, {self.Guidance,self,self.Entity}) --outdated
-					d = ( tr.HitPos - self:GetPos())
-					dir = self:WorldToLocalAngles(d:Angle())*0.02 --0.01 controls agility but is not scaled to timestep; bug poly
-					 Dist = self.Guidance:GetPos():Distance(self:GetPos())/39.37/10000
-				end
-			end
-			local Spiral = d:Length()/39370 or 0.5
-			if self.Sub then
-				Spiral = self.SpiralAm + (math.random(-self.SpiralAm*0.5,self.SpiralAm) )--Spaghett
-			end
-			local Inacc = math.random(-1,1)*Dist
-			self:SetAngles(self:LocalToWorldAngles(dir+Angle(Inacc,-Inacc,5)))
-			self:SetPos(self:LocalToWorld(Vector((self.velocity)*(TimeNew - self.Time),Spiral,0)))
-			local tr = util.QuickTrace( self:GetPos()+self:GetForward()*-28, self:GetForward()*((self.velocity)*(TimeNew - self.Time)+300), self.Filter) 
-			
-			self.Time = TimeNew
-			if(tr.Hit)then
-				self:Detonate()
-			end
-
-		self:NextThink( CurTime() + 0.0001 )
-		return true
+	if self.KillTime < CurTime() then
+		self:Detonate()
 	end
+
+	local TimeNew = CurTime()
+	local d = Vector()
+	local dir = AngleRand() * 0.01
+	local Dist = 0.01
+
+	if IsValid(self.Guidance) and self.Guidance:GetPos():Distance(self:GetPos()) < self.Distance then
+		local di = self.Guidance:WorldToLocalAngles((self:GetPos() - self.Guidance:GetPos()):Angle())
+
+		if di.p < 15 and di.p > -15 and di.y < 15 and di.y > -15 then
+			local glpos = self.Guidance:GetPos() + self.Guidance:GetForward()
+
+			if not self.Optic then
+				glpos = self.Guidance:GetAttachment(1).Pos + self.Guidance:GetForward() * 20
+			end
+
+			local tr = util.QuickTrace(glpos, self.Guidance:GetForward() * (self.Guidance:GetPos():Distance(self:GetPos()) + self.OffsetLength), {self.Guidance, self})
+			d = tr.HitPos - self:GetPos()
+			dir = self:WorldToLocalAngles(d:Angle()) * 0.02 --0.01 controls agility but is not scaled to timestep; bug poly
+			Dist = self.Guidance:GetPos():Distance(self:GetPos()) / 39.37 / 10000
+		end
+	end
+
+	local Spiral = d:Length() / 39370 or 0.5
+
+	if self.SubCaliber then
+		Spiral = self.SpiralAm + math.random(-self.SpiralAm * 0.5, self.SpiralAm) --Spaghett
+	end
+
+	local Inacc = math.random(-1, 1) * Dist
+	self:SetAngles(self:LocalToWorldAngles(dir + Angle(Inacc, -Inacc, 5)))
+	self:SetPos(self:LocalToWorld(Vector(self.Velocity * (TimeNew - self.Time), Spiral, 0)))
+	local tr = util.QuickTrace(self:GetPos() + self:GetForward() * -28, self:GetForward() * (self.Velocity * (TimeNew - self.Time) + 300), self.Filter)
+	self.Time = TimeNew
+
+	if tr.Hit then
+		self:Detonate()
+	end
+
+	self:NextThink(CurTime() + 0.0001) -- What the FUCK
+
+	return true
 end
 
-
-
 function ENT:Detonate()
-	if IsValid(self) and !self.Detonated then
+	if not IsValid(self) or self.Detonated then return end
 	self.Detonated = true
 	local Flash = EffectData()
-	Flash:SetOrigin( self:GetPos() )
-	Flash:SetNormal( self:GetForward() )
-	Flash:SetRadius((self.BulletData.FillerMass)^0.33*8*39.37/5 )
+	Flash:SetOrigin(self:GetPos())
+	Flash:SetNormal(self:GetForward())
+	Flash:SetRadius(self.BulletData.FillerMass ^ 0.33 * 8 * 39.37 / 5)
+	util.Effect("ACF_Scaled_Explosion", Flash)
 
-	util.Effect( "ACF_Scaled_Explosion", Flash )
-	btdat = {}
-	btdat["Type"]		= "HEAT" 
-	btdat["Accel"]	= self.BulletData.Accel
-	btdat["BoomPower"]		= self.BulletData.BoomPower
-	btdat["Caliber"]	= self.BulletData.Caliber
-	btdat["Crate"]	= self.BulletData.Crate
-	btdat["DragCoef"]	= self.BulletData.DragCoef
-	btdat["FillerMass"]		= self.BulletData.FillerMass
-	btdat["Filter"]	= {self,self.Entity}
-	btdat["Flight"]	= self.BulletData.Flight
-	btdat["FlightTime"]		= 0
-	btdat["FrArea"]	= self.BulletData.FrArea
-	btdat["FuseLength"]		= 0
-	btdat["Gun"]		= self
-	btdat["Id"]		= self.BulletData.Id
-	btdat["KETransfert"]		= self.BulletData.KETransfert
-	btdat["LimitVel"]	= 100
-	btdat["MuzzleVel"]		= self.BulletData.MuzzleVel
-	btdat["Owner"]	= self.BulletData.Owner
-	btdat["PenArea"]	= self.BulletData.PenArea
-	btdat["Pos"]		= self.BulletData.Pos
-	btdat["ProjLength"]		= self.BulletData.ProjLength
-	btdat["ProjMass"]	= self.BulletData.ProjMass
-	btdat["PropLength"]		= self.BulletData.PropLength
-	btdat["PropMass"]	= self.BulletData.PropMass
-	btdat["Ricochet"]	= self.BulletData.Ricochet
-	btdat["DetonatorAngle"] = self.BulletData.DetonatorAngle
-	btdat["RoundVolume"]		= self.BulletData.RoundVolume
-	btdat["ShovePower"]		= self.BulletData.ShovePower
-	btdat["Tracer"]	= self.BulletData.Tracer
-	
-	
+	BulletData = {
+		Type = "HEAT",
+		Accel = self.BulletData.Accel,
+		BoomPower = self.BulletData.BoomPower,
+		Caliber = self.BulletData.Caliber,
+		Crate = self.BulletData.Crate,
+		DragCoef = self.BulletData.DragCoef,
+		FillerMass = self.BulletData.FillerMass,
+		Filter = {self},
+		Flight = self.BulletData.Flight,
+		FlightTime = 0,
+		FrArea = self.BulletData.FrArea,
+		FuseLength = 0,
+		Gun = self,
+		Id = self.BulletData.Id,
+		KETransfert = self.BulletData.KETransfert,
+		LimitVel = 100,
+		MuzzleVel = self.BulletData.MuzzleVel,
+		Owner = self.BulletData.Owner,
+		PenArea = self.BulletData.PenArea,
+		Pos = self.BulletData.Pos,
+		ProjLength = self.BulletData.ProjLength,
+		ProjMass = self.BulletData.ProjMass,
+		PropLength = self.BulletData.PropLength,
+		PropMass = self.BulletData.PropMass,
+		Ricochet = self.BulletData.Ricochet,
+		DetonatorAngle = self.BulletData.DetonatorAngle,
+		RoundVolume = self.BulletData.RoundVolume,
+		ShovePower = self.BulletData.ShovePower,
+		Tracer = self.BulletData.Tracer,
+		SlugMass = self.BulletData.SlugMass,
+		SlugCaliber = self.BulletData.SlugCaliber,
+		SlugDragCoef = self.BulletData.SlugDragCoef,
+		SlugMV = self.BulletData.SlugMV,
+		SlugPenArea = self.BulletData.SlugPenArea,
+		SlugRicochet = self.BulletData.SlugRicochet,
+		ConeVol = self.BulletData.ConeVol,
+		CasingMass = self.BulletData.CasingMass,
+		BoomFillerMass = self.BulletData.BoomFillerMass
+	}
 
-
-	btdat["SlugMass"]	= self.BulletData.SlugMass
-	btdat["SlugCaliber"]		= self.BulletData.SlugCaliber
-	btdat["SlugDragCoef"]		= self.BulletData.SlugDragCoef
-	btdat["SlugMV"]	= self.BulletData.SlugMV
-	btdat["SlugPenArea"]		= self.BulletData.SlugPenArea
-	btdat["SlugRicochet"]		= self.BulletData.SlugRicochet
-	btdat["ConeVol"] = self.BulletData.ConeVol
-	btdat["CasingMass"] = self.BulletData.CasingMass
-	btdat["BoomFillerMass"] = self.BulletData.BoomFillerMass
 	self.FakeCrate = ents.Create("acf_fakecrate2")
-	self.FakeCrate:RegisterTo(btdat)
-	btdat["Crate"] = self.FakeCrate:EntIndex()
-	self:DeleteOnRemove(self.FakeCrate) 
-	
-	btdat["Flight"] = self:GetForward():GetNormalized() * btdat["MuzzleVel"] * 39.37
-	
-	
-	
-	btdat.Pos = self:GetPos()
-	self.CreateShell = ACF.RoundTypes[btdat.Type].create
-	self:CreateShell( btdat )
-	
-	
-	
+	self.FakeCrate:RegisterTo(BulletData)
+	self:DeleteOnRemove(self.FakeCrate)
+	BulletData.Crate = self.FakeCrate:EntIndex()
+	BulletData.Flight = self:GetForward():GetNormalized() * BulletData.MuzzleVel * 39.37
+	BulletData.Pos = self:GetPos()
+	self.CreateShell = ACF.RoundTypes[BulletData.Type].create
+	self:CreateShell(BulletData)
+
 	timer.Simple(0.1, function()
-	if(IsValid(self)) then
-	self:Remove()
-	end
+		if IsValid(self) then
+			self:Remove()
+		end
 	end)
-
-
-	end
-
 end

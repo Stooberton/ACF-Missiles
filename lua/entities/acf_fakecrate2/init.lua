@@ -1,59 +1,43 @@
-AddCSLuaFile( "cl_init.lua" )
-AddCSLuaFile( "shared.lua" )
-
-include('shared.lua')
-
+-- init.lua
+AddCSLuaFile("shared.lua")
+include("shared.lua")
 
 function ENT:Initialize()
-
 	self.SpecialDamage = true
 	self.Owner = self:GetOwner()
-	
 	print("hi from fakecrate")
-	
 end
 
-
-
-
-local nullhit = {Damage = 0, Overkill = 0, Loss = 0, Kill = false}
-function ENT:ACF_OnDamage( Entity , Energy , FrArea , Angle , Inflictor )
-	return table.Copy(nullhit)
+function ENT:ACF_OnDamage(Entity, Energy, FrArea, Angle, Inflictor)
+	return {
+		Damage = 0,
+		Overkill = 0,
+		Loss = 0,
+		Kill = false
+	}
 end
-
-
-
 
 function ENT:UpdateTransmitState()
-
 	return TRANSMIT_ALWAYS
-	
 end
 
+function ENT:RegisterTo(Bullet)
+	if Bullet.BulletData then
+		self:SetNWString("Sound", Bullet.Primary and Bullet.Primary.Sound or nil)
+		self.Owner = Bullet:GetOwner()
+		self:SetOwner(self.Owner)
+	end
 
+	local BulletColor = Bullet.Colour or self:GetColor()
+	local ColorVector = Vector(BulletColor.r, BulletColor.g, BulletColor.b)
 
-
-function ENT:RegisterTo(bullet)
-
-		if bullet.BulletData then
-			self:SetNetworkedString( "Sound", bullet.Primary and bullet.Primary.Sound or nil)
-			self.Owner = bullet:GetOwner()
-			self:SetOwner(bullet:GetOwner())
-		end
-	
-	
-	self:SetNetworkedInt( "Caliber", bullet.Caliber or 10)
-	self:SetNetworkedInt( "ProjMass", bullet.ProjMass or 10)
-	self:SetNetworkedInt( "FillerMass", bullet.FillerMass or 0)
-	self:SetNetworkedInt( "DragCoef", bullet.DragCoef or 1)
-	self:SetNetworkedString( "AmmoType", bullet.Type or "AP")
-	self:SetNetworkedInt( "Tracer" , bullet.Tracer or 0)
-    
-	local col = bullet.Colour or self:GetColor()
-	self:SetNWVector( "Color" , Vector(col.r, col.g, col.b))
-	self:SetNWVector( "TracerColour" , Vector(col.r, col.g, col.b))
-	self:SetColor(col)
-	
+	self:SetNWInt("Caliber", Bullet.Caliber or 10)
+	self:SetNWInt("ProjMass", Bullet.ProjMass or 10)
+	self:SetNWInt("FillerMass", Bullet.FillerMass)
+	self:SetNWInt("DragCoef", Bullet.DragCoef or 1)
+	self:SetNWString("AmmoType", Bullet.Type or "AP")
+	self:SetNWInt("Tracer", Bullet.Tracer)
+	self:SetNWVector("Color", ColorVector)
+	self:SetNWVector("TracerColour", ColorVector)
+	self:SetColor(BulletColor)
 end
-
-
