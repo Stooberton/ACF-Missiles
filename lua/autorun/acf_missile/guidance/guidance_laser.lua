@@ -15,53 +15,53 @@ function this:Init()
 end
 
 function this:Configure(missile)
-    self:super().Configure(self, missile)
-    self.ViewCone = ACF_GetGunValue(missile.BulletData, "viewcone") or this.ViewCone
-    self.ViewConeCos = math.cos(math.rad(self.ViewCone))
+	self:super().Configure(self, missile)
+	self.ViewCone = ACF_GetGunValue(missile.BulletData, "viewcone") or this.ViewCone
+	self.ViewConeCos = math.cos(math.rad(self.ViewCone))
 end
 
 function this:GetGuidance(missile)
-    local posVec = self:GetWireTarget()
+	local posVec = self:GetWireTarget()
 
-    if not posVec or type(posVec) ~= "Vector" or posVec == Vector() then
-        return {
-            TargetPos = nil
-        }
-    end
+	if not posVec or type(posVec) ~= "Vector" or posVec == Vector() then
+		return {
+			TargetPos = nil
+		}
+	end
 
-    if posVec then
-        local mfo = missile:GetForward()
-        local mdir = (posVec - missile:GetPos()):GetNormalized()
-        local dot = mfo.x * mdir.x + mfo.y * mdir.y + mfo.z * mdir.z
+	if posVec then
+		local mfo = missile:GetForward()
+		local mdir = (posVec - missile:GetPos()):GetNormalized()
+		local dot = mfo.x * mdir.x + mfo.y * mdir.y + mfo.z * mdir.z
 
-        if dot < self.ViewConeCos then
-            return {
-                TargetPos = nil
-            }
-        end
+		if dot < self.ViewConeCos then
+			return {
+				TargetPos = nil
+			}
+		end
 
-        local traceArgs = {
-            start = missile:GetPos(),
-            endpos = posVec,
-            mask = MASK_SOLID_BRUSHONLY,
-            filter = {missile}
-        }
+		local traceArgs = {
+			start = missile:GetPos(),
+			endpos = posVec,
+			mask = MASK_SOLID_BRUSHONLY,
+			filter = {missile}
+		}
 
-        local res = util.TraceLine(traceArgs)
-        local dist = res.StartPos:Distance(res.HitPos)
-        if res.Hit and dist < 80 then return {} end
-    end
+		local res = util.TraceLine(traceArgs)
+		local dist = res.StartPos:Distance(res.HitPos)
+		if res.Hit and dist < 80 then return {} end
+	end
 
-    self.TargetPos = posVec
+	self.TargetPos = posVec
 
-    return {
-        TargetPos = posVec,
-        ViewCone = self.ViewCone
-    }
+	return {
+		TargetPos = posVec,
+		ViewCone = self.ViewCone
+	}
 end
 
 function this:GetDisplayConfig()
-    return {
-        Tracking = math.Round(self.ViewCone * 2, 1) .. " deg"
-    }
+	return {
+		Tracking = math.Round(self.ViewCone * 2, 1) .. " deg"
+	}
 end

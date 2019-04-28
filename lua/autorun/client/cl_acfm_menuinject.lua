@@ -159,8 +159,6 @@ function CreateRackSelectGUI(node)
 
 			if rack and rack.desc then
 				acfmenupanel:CPanelText("RackDesc", rack.desc .. "\n")
-				--local configPanel = ACFMissiles_CreateMenuConfiguration(rack, acfmenupanel.CData.RackSelect, "acfmenu_data1", acfmenupanel.CData.RackSelect.ConfigPanel)
-				--acfmenupanel.CData.RackSelect.ConfigPanel = configPanel
 			else
 				acfmenupanel:CPanelText("RackDesc", "Select a compatible rack from the list above.\n")
 			end
@@ -172,7 +170,6 @@ function CreateRackSelectGUI(node)
 		acfmenupanel.CData.RackSelect.ConfigPanel = configPanel
 		acfmenupanel.CustomDisplay:AddItem(configPanel)
 	else
-		--acfmenupanel.CData.RackSelect:SetSize(100, 30)
 		default = acfmenupanel.CData.RackSelect:GetValue()
 		acfmenupanel.CData.RackSelect:SetVisible(true)
 	end
@@ -241,10 +238,7 @@ function ModifyACFMenu(panel)
 					local class = gunClasses[gun.mytable.gunclass]
 
 					if (class and class.type == "missile") and not gun.ACFMOverridden then
-						local oldclick = gun.DoClick
-
 						gun.DoClick = function(self)
-							local ret = oldclick(self)
 							CreateRackSelectGUI(self)
 						end
 

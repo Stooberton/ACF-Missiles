@@ -53,12 +53,6 @@ function this.doInherit(child, baseClass)
 
 		return baseClass:instanceof(class)
 	end
-	--[[
-	function new_class:printITree()
-		print(new_class)
-		if baseClass then baseClass:printITree() end
-	end
-	//]]
 
 	return new_class, class_mt
 end

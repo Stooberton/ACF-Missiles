@@ -82,7 +82,7 @@ function ACFM_RenderLight(idx, lightSize, colour, pos)
 	if not ACFM_CanEmitLight(lightSize) then return end
 	local dlight = DynamicLight(idx)
 
-	if (dlight) then
+	if dlight then
 		local size = lightSize
 		local c = colour or Color(255, 128, 48)
 		dlight.Pos = pos

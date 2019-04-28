@@ -2,13 +2,13 @@
 include("shared.lua")
 
 function ENT:Draw()
-    local Pos = self:GetPos()
-    local TraceEnt = LocalPlayer():GetEyeTrace().Entity
+	local Pos = self:GetPos()
+	local TraceEnt = LocalPlayer():GetEyeTrace().Entity
 
-    if TraceEnt == self and EyePos():Distance(Pos) < 256 and self:GetOverlayText() ~= "" then
-        AddWorldTip(self:EntIndex(), self:GetOverlayText(), 0.5, Pos, self)
-    end
+	if TraceEnt == self and EyePos():Distance(Pos) < 256 and self:GetOverlayText() ~= "" then
+		AddWorldTip(self:EntIndex(), self:GetOverlayText(), 0.5, Pos, self)
+	end
 
-    self:DrawModel()
-    Wire_Render(self)
+	self:DrawModel()
+	Wire_Render(self)
 end
