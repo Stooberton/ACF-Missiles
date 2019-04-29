@@ -238,7 +238,10 @@ function ModifyACFMenu(panel)
 					local class = gunClasses[gun.mytable.gunclass]
 
 					if (class and class.type == "missile") and not gun.ACFMOverridden then
+						local oldclick = gun.DoClick
+
 						gun.DoClick = function(self)
+							local ret = oldclick
 							CreateRackSelectGUI(self)
 						end
 
