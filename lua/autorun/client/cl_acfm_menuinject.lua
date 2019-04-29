@@ -241,7 +241,7 @@ function ModifyACFMenu(panel)
 						local oldclick = gun.DoClick
 
 						gun.DoClick = function(self)
-							local ret = oldclick
+							local ret = oldclick(self)
 							CreateRackSelectGUI(self)
 						end
 
