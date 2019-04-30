@@ -1,6 +1,5 @@
 -- init.lua
 DEFINE_BASECLASS("acf_explosive")
-
 AddCSLuaFile("shared.lua")
 AddCSLuaFile("cl_init.lua")
 include("shared.lua")
@@ -15,6 +14,8 @@ local WireTable = {
 
 -- Missiles should clean themselves after being destroyed
 local function TrimNullMissiles(Rack)
+	if not next(Rack.Missiles) then return end
+
 	for i = #Rack.Missiles, 1, -1 do
 		if not IsValid(Rack.Missiles[i]) then
 			table.remove(Rack.Missiles, i)
@@ -22,17 +23,16 @@ local function TrimNullMissiles(Rack)
 	end
 end
 
-local function FindNextCrate(Rack)
-	local Link = Rack.AmmoLink
-	if not next(Link) then return nil end
+local function GetCrate(Gun)
+	if not next(Gun.Crates) then return nil end -- No crates linked to this gun
+	local Select = next(Gun.Crates, Gun.CurrentCrate) or next(Gun.Crates) -- Next crate from Start or, if at last crate, first crate
+	local Start = Select
+	repeat
+		if Select.Load then return Select end
+		Select = next(Gun.Crates, Select) or next(Gun.Crates)
+	until Select == Start or Select.Load -- If we've looped back around to the start then there's nothing to use
 
-	for i = 1, #Link do
-		Rack.Sequence = Rack.Sequence % #Link + 1
-		local Crate = Link[Rack.Sequence]
-		if Crate.Ammo > 0 and Crate.Load then return Crate end
-	end
-
-	return nil
+	return Select.Load and Select or nil
 end
 
 local function SetLoadedWeight(Rack)
@@ -59,7 +59,7 @@ end
 local function AddMissile(Rack)
 	TrimNullMissiles(Rack)
 	local Index = #Rack.Missiles
-	local Crate = FindNextCrate(Rack)
+	local Crate = GetCrate(Rack)
 	if Index >= Rack.MagSize then return false end
 	if not IsValid(Crate) then return false end
 	local Owner = Rack.Owner
@@ -109,7 +109,7 @@ end
 local function Reload(Rack)
 	if not Rack.Ready and IsValid(PeekMissile(Rack)) then return end
 	if #Rack.Missiles >= Rack.MagSize then return false end
-	if not IsValid(FindNextCrate(Rack)) then return false end
+	if not IsValid(GetCrate(Rack)) then return false end
 	if Rack.NextFire < 1 then return false end
 	local Missile = AddMissile(Rack)
 	TrimNullMissiles(Rack)
@@ -206,9 +206,9 @@ local function CheckCrateDistance(Rack, Crate)
 end
 
 local function TrimDistantCrates(Rack)
-	if not next(Rack.AmmoLink) then return end
+	if not next(Rack.Crates) then return end
 
-	for k, Crate in pairs(Rack.AmmoLink) do
+	for Crate in pairs(Rack.Crates) do
 		if CheckCrateDistance(Rack, Crate) and Crate.Load then
 			local SoundStr = "physics/metal/metal_box_impact_bullet" .. tostring(math.random(1, 3)) .. ".wav"
 			Rack:EmitSound(SoundStr, 500, 100)
@@ -224,14 +224,14 @@ local function UpdateRefillBonus(Rack)
 	local MinFullEfficiency = 50000 * Efficiency -- The minimum crate volume to provide full efficiency bonus all by itself.
 	local MaxDist = ACF.RefillDistance
 
-	if ACF.AmmoCrates and next(ACF.AmmoCrates) then
-		for k, v in pairs(ACF.AmmoCrates) do
-			if v.RoundType == "Refill" and v.Ammo > 0 and v.Load then
-				local CrateDist = SelfPos:Distance(v:GetPos())
+	if next(ACF.AmmoCrates) then
+		for Crate in pairs(ACF.AmmoCrates) do
+			if Crate.RoundType == "Refill" and Crate.Ammo > 0 and Crate.Load then
+				local CrateDist = SelfPos:Distance(Crate:GetPos())
 
 				if CrateDist < MaxDist then
 					CrateDist = math.max(0, CrateDist * 2 - MaxDist)
-					local Bonus = (v.Volume / MinFullEfficiency) * (MaxDist - CrateDist) / MaxDist
+					local Bonus = (Crate.Volume / MinFullEfficiency) * (MaxDist - CrateDist) / MaxDist
 					TotalBonus = TotalBonus + Bonus
 				end
 			end
@@ -261,7 +261,7 @@ local function SetStatusString(Rack)
 		return
 	end
 
-	if not IsValid(FindNextCrate(Rack)) then
+	if not IsValid(GetCrate(Rack)) then
 		Rack:SetNWString("Status", "Can't find ammo!")
 
 		return
@@ -414,41 +414,36 @@ function ENT:CanLoadCaliber(Caliber)
 end
 
 function ENT:Link(Crate)
-	-- Don't link if it's not an ammo crate
-	if not IsValid(Crate) or Crate:GetClass() ~= "acf_ammo" then return false, "Racks can only be linked to ammo crates!" end
+	if not IsValid(Crate) then return false, "Invalid entity!" end
+	if Crate:GetClass() ~= "acf_ammo" then return false, "Racks can only be linked to ammo crates!" end
+	if self.Crates[Crate] then return false, "Crate is already linked to this gun!" end
+	if Crate.RoundType == "Refill" then return false, "Refill crates cannot be linked!" end
+	if Crate.Guns[self] then return false, "Crate is already linked to this gun!" end
+
 	local BulletData = Crate.BulletData
-	local BulletType = BulletData.RoundType or BulletData.Type
-	-- Don't link if it's a refill crate
-	if BulletType == "Refill" then return false, "Refill crates cannot be linked!" end
-	-- Don't link if it's a blacklisted round type for this gun
 	local GunClass = ACF_GetGunValue(BulletData, "gunclass")
-	local Blacklist = ACF.AmmoBlacklist[BulletType] or {}
+	local Blacklist = ACF.AmmoBlacklist[Crate.RoundType] or {}
+
 	if not GunClass or table.HasValue(Blacklist, GunClass) then return false, "That round type cannot be used with this gun!" end
-	-- Don't link if it's not a missile.
+
 	local Result, Message = ACF_CanLinkRack(self.Id, BulletData.Id, BulletData, self)
 	if not Result then return Result, Message end
 
-	-- Don't link if it's already linked
-	for k, v in pairs(self.AmmoLink) do
-		if v == Crate then return false, "That crate is already linked to this gun!" end
-	end
-
-	table.insert(self.AmmoLink, Crate)
-	table.insert(Crate.Master, self)
+	self.Crates[Crate] = true
+	Crate.Guns[self] = true
 
 	return true, "Link successful!"
 end
 
 function ENT:Unlink(Target)
-	for k, v in pairs(self.AmmoLink) do
-		if v == Target then
-			table.remove(self.AmmoLink, k)
+	if self.Crates[Target] then
+		self.Crates[Target] = nil
+		Target.Guns[self] = nil
 
-			return true, "Unlink successful!"
-		end
+		return true, "Unlink successful!"
+	else
+		return false, "That entity is not linked to this gun!"
 	end
-
-	return false, "That entity is not linked to this gun!"
 end
 
 function ENT:UnloadAmmo()
@@ -625,17 +620,13 @@ list.Set("ACFCvars", "acf_rack", {"id"})
 duplicator.RegisterEntityClass("acf_rack", MakeACF_Rack, "Pos", "Angle", "Id")
 
 function ENT:PreEntityCopy()
-	if next(self.AmmoLink) then
+	if next(self.Crates) then
 		local EntIds = {}
 
 		-- Adding valid entities and cleaning invalid ones
-		for i = #self.AmmoLink, 1, -1 do
-			local Ammo = self.AmmoLink[i]
-
-			if IsValid(Ammo) then
-				table.insert(EntIds, Ammo:EntIndex())
-			else
-				table.remove(self.AmmoLink, Ammo)
+		for Crate in pairs(self.Crates) do
+			if IsValid(Crate) then
+				table.insert(EntIds, Crate:EntIndex())
 			end
 		end
 
