@@ -46,7 +46,7 @@ ACF_defineGun("BGM-71E ASM", { --id
         penmul      = math.sqrt(8.8)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Wire"},
     fuses       = {"Contact", "Optical"},
 
@@ -86,7 +86,7 @@ ACF_defineGun("AGM-114 ASM", { --id
         penmul      = math.sqrt(6.5)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Laser"},
     fuses       = {"Contact", "Optical"},
 
@@ -126,7 +126,7 @@ ACF_defineGun("9M113 ASM", { --id
         penmul      = math.sqrt(6)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Laser"},
     fuses       = {"Contact", "Optical"},
 
@@ -169,7 +169,7 @@ ACF_defineGun("AT-3 ASM", { --id
         penmul      = math.sqrt(8)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Wire"},
     fuses       = {"Contact", "Optical"},
 
@@ -211,7 +211,7 @@ ACF_defineGun("Ataka ASM", { --id
         penmul      = math.sqrt(6)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Laser"},
     fuses       = {"Contact", "Optical"},
 
@@ -253,7 +253,7 @@ ACF_defineGun("AGM-45 ASM", { --id
         penmul      = math.sqrt(0.5)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Radar", "Laser"},
     fuses       = {"Contact", "Timed"}, 
 
@@ -294,7 +294,7 @@ ACF_defineGun("AGM-122 ASM", { --id
 		finmul		= 0.03			-- fin multiplier (mostly used for unpropelled guidance)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Radar"},
     fuses       = {"Contact", "Optical"},
 
@@ -336,7 +336,7 @@ ACF_defineGun("AT-2 ASM", { --id
         penmul      = math.sqrt(5.5)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Laser", "Wire"},
     fuses       = {"Contact", "Optical"},
 	viewcone    = 90,   -- getting outside this cone will break the lock.  Divided by 2.
@@ -375,7 +375,7 @@ ACF_defineGun("AGM-119 ASM", { --id
         penmul      = math.sqrt(0.25)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Laser", "Radar"},
     fuses       = ACF_GetAllFuseNamesExcept( {"Radio"} ),
 

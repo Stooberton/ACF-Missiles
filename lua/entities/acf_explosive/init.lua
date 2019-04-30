@@ -158,9 +158,9 @@ end
 function ENT:Detonate(OverrideBulletData)
 	if self.Detonated then return end
 	self.Detonated = true
-	local BulletData = OverrideBulletData or self.BulletData
 	local PhysObj = self:GetPhysicsObject()
 	local PhysVel = PhysObj and PhysObj:GetVelocity() or Vector(0, 0, 1000)
+	local BulletData = OverrideBulletData or self.BulletData
 	BulletData.Flight = BulletData.Flight or PhysVel
 
 	timer.Simple(3, function()

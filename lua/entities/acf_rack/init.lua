@@ -311,37 +311,6 @@ function ENT:GetFireDelay(NextMissile)
 	return Interval
 end
 
-function ENT:Initialize()
-	self.BaseClass.Initialize(self)
-	self.SpecialHealth = true --If true needs a special ACF_Activate function
-	self.SpecialDamage = true --If true needs a special ACF_OnDamage function --NOTE: you can't "fix" missiles with setting this to false, it acts like a prop!!!!
-	self.ReloadTime = 1
-	self.Ready = true
-	self.Firing = nil
-	self.NextFire = 1
-	self.PostReloadWait = CurTime()
-	self.WaitFunction = self.GetFireDelay
-	self.LastSend = 0
-	self.Owner = self
-	self.IsMaster = true
-	self.Sequence = 1
-	self.LastThink = CurTime()
-
-	self.BulletData = {
-		Type = "Empty",
-		PropMass = 0,
-		ProjMass = 0
-	}
-
-	self.Inaccuracy = 1
-	self.Inputs = WireLib.CreateInputs(self, {"Fire", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]"})
-	self.Outputs = WireLib.CreateOutputs(self, {"Ready", "Entity [ENTITY]", "Shots Left", "Position [VECTOR]", "Target [ENTITY]"})
-	Wire_TriggerOutput(self, "Entity", self)
-	Wire_TriggerOutput(self, "Ready", 1)
-	self.Missiles = {}
-	self.AmmoLink = {}
-end
-
 function ENT:ACF_Activate(Recalc)
 	local EmptyMass = self.RoundWeight or self.EmptyMass or 10
 	local PhysObj = self:GetPhysicsObject()
@@ -548,76 +517,113 @@ function ENT:Think()
 	return true
 end
 
-function MakeACF_Rack(Owner, Pos, Angle, Id, UpdateRack)
+function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	if not Owner:CheckLimit("_acf_gun") then return false end
-	local Rack = UpdateRack or ents.Create("acf_rack")
-	if not IsValid(Rack) then return false end
-	local List = ACF.Weapons.Rack
-	local Classes = ACF.Classes.Rack
-	Rack:SetAngles(Angle)
-	Rack:SetPos(Pos)
 
-	if not UpdateRack then
-		Rack:Spawn()
-		Owner:AddCount("_acf_gun", Rack)
-		Owner:AddCleanup("acfmenu", Rack)
-	end
+	local Rack = UpdateRack or ents.Create("acf_rack")
+
+	if not IsValid(Rack) then return false end
 
 	Id = Id or Rack.Id
-	Rack:SetPlayer(Owner)
-	Rack.Owner = Owner
-	Rack.Id = Id
-	local GunDef = List[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
-	Rack.MinCaliber = GunDef.mincaliber
-	Rack.MaxCaliber = GunDef.maxcaliber
-	Rack.caliber = GunDef.caliber
-	Rack.Model = GunDef.model
-	Rack.EmptyMass = GunDef.weight
-	Rack.ACFLegalMass = Rack.EmptyMass
-	Rack.Class = GunDef.gunclass
-	-- Custom BS for karbine. Per Rack ROF.
-	Rack.PGRoFmod = GunDef.rofmod and math.max(0, GunDef.rofmod) or 1
-	-- Custom BS for karbine. Magazine Size, Mag reload Time
-	Rack.MagSize = GunDef.magsize and math.max(1, GunDef.magsize) or 1
-	Rack.MagReload = GunDef.magreload and math.max(0, GunDef.magreload) or 0
-	local GunClass = Classes[Rack.Class] or error("Couldn't find the " .. tostring(Rack.Class) .. " gun-class!")
-	Rack.Muzzleflash = GunDef.muzzleflash or GunClass.muzzleflash or ""
-	Rack.RoFmod = GunClass.rofmod
-	Rack.Sound = GunDef.sound or GunClass.sound
-	Rack.Inaccuracy = GunClass.spread
-	Rack.HideMissile = ACF_GetRackValue(Id, "hidemissile")
-	Rack.ProtectMissile = GunDef.protectmissile or GunClass.protectmissile
-	Rack.CustomArmour = GunDef.armour or GunClass.armour
-	Rack.ReloadMultiplier = ACF_GetRackValue(Id, "reloadmul")
-	Rack.WhitelistOnly = ACF_GetRackValue(Id, "whitelistonly")
+
+	if not Id or not ACF.Weapons.Rack[Id] then
+		local GunClass = ACF.Weapons.Guns[MissileId]
+
+		if not GunClass then
+			error("Couldn't spawn the missile rack: can't find the gun-class '" + tostring(MissileId) + "'.")
+		elseif not GunClass.rack then
+			error("Couldn't spawn the missile rack: '" + tostring(MissileId) + "' doesn't have a preferred missile rack.")
+		end
+
+		Id = GunClass.rack
+	end
+
+	local GunDef = ACF.Weapons.Rack[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
+	local GunClass = ACF.Classes.Rack[GunDef.gunclass] or error("Couldn't find the " .. tostring(Rack.Class) .. " gun-class!")
+
+	if not UpdateRack then
+		Rack:SetPlayer(Owner)
+		Rack:SetModel(GunDef.model)
+		Rack:SetAngles(Angle)
+		Rack:SetPos(Pos)
+		Rack:Spawn()
+
+		Rack:PhysicsInit(SOLID_VPHYSICS)
+		Rack:SetMoveType(MOVETYPE_VPHYSICS)
+		Rack:SetSolid(SOLID_VPHYSICS)
+
+		Owner:AddCount("_acf_gun", Rack)
+		Owner:AddCleanup("acfmenu", Rack)
+
+		undo.Create("acf_rack")
+		undo.AddEntity(Rack)
+		undo.SetPlayer(Owner)
+		undo.Finish()
+	end
+
+	Rack.Owner				= Owner
+	Rack.Id					= Id
+	Rack.MissileId			= MissileId
+	Rack.MinCaliber			= GunDef.mincaliber
+	Rack.MaxCaliber			= GunDef.maxcaliber
+	Rack.caliber			= GunDef.caliber
+	Rack.Model				= GunDef.model
+	Rack.EmptyMass			= GunDef.weight
+	Rack.ACFLegalMass		= Rack.EmptyMass
+	Rack.Class				= GunDef.gunclass
+	Rack.RoFmod				= GunClass.rofmod or 1
+	Rack.PGRoFmod			= math.max(0, Rack.RoFmod) -- Custom BS for karbine. Per Rack ROF.
+	Rack.MagSize			= GunDef.magsize and math.max(1, GunDef.magsize) or 1 -- Custom BS for karbine. Magazine Size, Mag reload Time
+	Rack.MagReload			= GunDef.magreload and math.max(0, GunDef.magreload) or 0
+	Rack.Muzzleflash		= GunDef.muzzleflash or GunClass.muzzleflash or ""
+	Rack.Sound				= GunDef.sound or GunClass.sound
+	Rack.Inaccuracy			= GunClass.spread
+	Rack.HideMissile		= ACF_GetRackValue(Id, "hidemissile")
+	Rack.ProtectMissile		= GunDef.protectmissile or GunClass.protectmissile
+	Rack.CustomArmour		= GunDef.armour or GunClass.armour
+	Rack.ReloadMultiplier	= ACF_GetRackValue(Id, "reloadmul")
+	Rack.WhitelistOnly		= ACF_GetRackValue(Id, "whitelistonly")
+	Rack.SpecialHealth		= true -- If true needs a special ACF_Activate function
+	Rack.SpecialDamage		= true -- If true needs a special ACF_OnDamage function
+	Rack.ReloadTime			= 1
+	Rack.Ready				= true
+	Rack.Firing				= nil
+	Rack.NextFire			= 1
+	Rack.PostReloadWait		= CurTime()
+	Rack.WaitFunction		= Rack.GetFireDelay
+	Rack.LastSend			= 0
+	Rack.IsMaster			= true
+	Rack.LastThink			= CurTime()
+	Rack.Missiles			= {}
+	Rack.Crates				= {}
+
+	Rack.BulletData = {
+		Type = "Empty",
+		PropMass = 0,
+		ProjMass = 0
+	}
+
+	Rack.Inputs = WireLib.CreateInputs(Rack, {"Fire", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]"})
+	Rack.Outputs = WireLib.CreateOutputs(Rack, {"Ready", "Entity [ENTITY]", "Shots Left", "Position [VECTOR]", "Target [ENTITY]"})
+
+	Wire_TriggerOutput(Rack, "Entity", Rack)
+	Wire_TriggerOutput(Rack, "Ready", 1)
+
 	Rack:SetNWString("Class", Rack.Class)
 	Rack:SetNWString("ID", Rack.Id)
 	Rack:SetNWString("Sound", Rack.Sound)
 
-	if not UpdateRack or Rack.Model ~= Rack:GetModel() then
-		Rack:SetModel(Rack.Model)
-		Rack:PhysicsInit(SOLID_VPHYSICS)
-		Rack:SetMoveType(MOVETYPE_VPHYSICS)
-		Rack:SetSolid(SOLID_VPHYSICS)
+	local PhysObj = Rack:GetPhysicsObject()
+
+	if IsValid(PhysObj) then
+		PhysObj:SetMass(Rack.EmptyMass)
 	end
-
-	local PhysRack = Rack:GetPhysicsObject()
-
-	if IsValid(PhysRack) then
-		PhysRack:SetMass(Rack.EmptyMass)
-	end
-
-	hook.Call("ACF_RackCreate", nil, Rack)
-	undo.Create("acf_rack")
-	undo.AddEntity(Rack)
-	undo.SetPlayer(Owner)
-	undo.Finish()
 
 	return Rack
 end
 
-list.Set("ACFCvars", "acf_rack", {"id"})
-duplicator.RegisterEntityClass("acf_rack", MakeACF_Rack, "Pos", "Angle", "Id")
+list.Set("ACFCvars", "acf_rack", {"data9", "id"})
+duplicator.RegisterEntityClass("acf_rack", MakeACF_Rack, "Pos", "Angle", "Id", "MissileId")
 
 function ENT:PreEntityCopy()
 	if next(self.Crates) then
@@ -640,7 +646,8 @@ function ENT:PreEntityCopy()
 	end
 
 	duplicator.StoreEntityModifier(self, "ACFRackInfo", {
-		Id = self.Id
+		Id = self.Id,
+		MissileId = self.MissileId
 	})
 
 	-- Wire dupe info
@@ -649,9 +656,10 @@ end
 
 function ENT:PostEntityPaste(Player, Ent, CreatedEntities)
 	self.Id = Ent.EntityMods.ACFRackInfo.Id
-	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), self.Id, self)
+	self.MissileId = Ent.EntityMods.ACFRackInfo.MissileId
+	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), self.Id, self.MissileId, self)
 
-	if Ent.EntityMods and Ent.EntityMods.ACFAmmoLink then
+	if Ent.EntityMods.ACFAmmoLink then
 		local AmmoLink = Ent.EntityMods.ACFAmmoLink
 
 		if AmmoLink.entities and next(AmmoLink.entities) then

@@ -60,7 +60,7 @@ ACF_defineGun("40mmAAM", { --id
 		finmul		= 0.003			-- fin multiplier (mostly used for unpropelled guidance)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = ACF_GetAllGuidanceNames(),
     fuses       = ACF_GetAllFuseNames(),
 
@@ -99,7 +99,7 @@ ACF_defineGun("AIM-9 AAM", { --id
 		finmul		= 0.025			-- fin multiplier (mostly used for unpropelled guidance)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Radar"},
     fuses       = {"Contact", "Radio"},
 
@@ -141,7 +141,7 @@ ACF_defineGun("AIM-120 AAM", { --id
 		finmul		= 0.01			-- fin multiplier (mostly used for unpropelled guidance)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Radar"},
     fuses       = {"Contact", "Radio"},
 
@@ -184,7 +184,7 @@ ACF_defineGun("AIM-54 AAM", { --id
 		finmul		= 0.05			-- fin multiplier (mostly used for unpropelled guidance)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Radar"},
     fuses       = {"Contact", "Radio"},
 

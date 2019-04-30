@@ -48,7 +48,7 @@ ACF_defineGun("40mmFFAR", { --id
 		penmul		= math.sqrt(4)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb"},
     fuses       = {"Contact", "Timed"},
 
@@ -91,7 +91,7 @@ ACF_defineGun("70mmFFAR", { --id
         penmul      = math.sqrt(6)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb"},
     fuses       = {"Contact", "Timed"},
 
@@ -130,7 +130,7 @@ ACF_defineGun("40mmFFAR", { --id
 		penmul		= math.sqrt(4)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb"},
     fuses       = {"Contact", "Timed"},
 
@@ -176,7 +176,7 @@ ACF_defineGun("70mmFFAR", { --id
         penmul      = math.sqrt(6)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
 
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb"},
     fuses       = {"Contact", "Timed"},
 

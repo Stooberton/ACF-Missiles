@@ -49,7 +49,7 @@ ACF_defineGun("WalleyeGBU", { --id
         penmul      = math.sqrt(0.5)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
    
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
     guidance    = {"Dumb", "Laser"},
     fuses       = {"Contact", "Timed", "Optical"},
 	racks       = {["1xRK"] = true,  ["2xRK"] = true,  ["3xRK"] = true},   -- a whitelist for racks that this missile can load into.  can also be a 'function(bulletData, rackEntity) return boolean end'
@@ -87,7 +87,7 @@ ACF_defineGun("227kgGBU", { --id
         penmul      = math.sqrt(0.4)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
    
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Laser"},
 
     fuses       = {"Contact", "Timed", "Optical", "Cluster"},
@@ -129,7 +129,7 @@ ACF_defineGun("454kgGBU", { --id
         penmul      = math.sqrt(0.3)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
    
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Laser"},
     fuses       = {"Contact", "Timed", "Optical", "Cluster"},
  
@@ -169,7 +169,7 @@ ACF_defineGun("909kgGBU", { --id
         penmul      = math.sqrt(0.2)  	-- HEAT velocity multiplier. Squared relation to penetration (math.sqrt(2) means 2x pen)
 	},
    
-    ent         = "acf_missile_to_rack", -- A workaround ent which spawns an appropriate rack for the missile.
+    ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Laser"},
     fuses       = {"Contact", "Timed", "Optical", "Cluster"},
  
