@@ -1,8 +1,8 @@
 -- init.lua
-DEFINE_BASECLASS("acf_explosive")
 AddCSLuaFile("cl_init.lua")
 AddCSLuaFile("shared.lua")
 include("shared.lua")
+DEFINE_BASECLASS("acf_explosive")
 
 local function SetGuidance(Missile, Guidance)
 	Missile.Guidance = Guidance
