@@ -220,13 +220,13 @@ ACF_DefineRack("6xUARRK", {
 
     mountpoints =
 	{
-		["missile1"] = {["offset"] = Vector(3.075,0.1,0), ["scaledir"] = Vector(0,0,0)},
-		["missile2"] = {["offset"] = Vector(3.075,0.1,0), ["scaledir"] = Vector(0,0,0)},
-		["missile3"] = {["offset"] = Vector(3.075,0.1,0), ["scaledir"] = Vector(0,0,0)},
-		["missile3"] = {["offset"] = Vector(3.075,-.1,0), ["scaledir"] = Vector(0,0,0)},
-		["missile4"] = {["offset"] = Vector(3.075,0.1,0), ["scaledir"] = Vector(0,0,0)},
-		["missile5"] = {["offset"] = Vector(3.075,0.1,0), ["scaledir"] = Vector(0,0,0)},
-		["missile6"] = {["offset"] = Vector(3.075,0.1,0), ["scaledir"] = Vector(0,0,0)},
+		["missile1"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
+		["missile2"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
+		["missile3"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
+		["missile3"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
+		["missile4"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
+		["missile5"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
+		["missile6"] = {["offset"] = Vector(3.075,-0.1,0), ["scaledir"] = Vector()},
 	}
 } )
 
@@ -290,10 +290,10 @@ ACF_DefineRack("4x FIM-92", {
 	
     mountpoints = 
 	{
-		["missile1"] = {["offset"] = Vector(0,0,0), ["scaledir"] = Vector(0,0,0)},
-		["missile2"] = {["offset"] = Vector(0,0,0), ["scaledir"] = Vector(0,0,0)},
-		["missile1"] = {["offset"] = Vector(0,0,0), ["scaledir"] = Vector(0,0,0)},
-		["missile2"] = {["offset"] = Vector(0,0,0), ["scaledir"] = Vector(0,0,0)}
+		["missile1"] = {["offset"] = Vector(), ["scaledir"] = Vector()},
+		["missile2"] = {["offset"] = Vector(), ["scaledir"] = Vector()},
+		["missile3"] = {["offset"] = Vector(), ["scaledir"] = Vector(0,0,-1)},
+		["missile4"] = {["offset"] = Vector(), ["scaledir"] = Vector(0,0,-1)}
 	} 
 } )
 

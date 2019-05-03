@@ -414,6 +414,17 @@ end
 function ENT:OnRemove()
 	self.BaseClass.OnRemove(self)
 	ACF_ActiveMissiles[self] = nil
+
+	if self.Launcher and not self.Launched then
+		local Launcher = self.Launcher
+		local NewAmmo = Launcher.AmmoCount - 1
+
+		Launcher.Missiles[self.Attachment] = nil
+		Launcher.AmmoCount = NewAmmo
+		Launcher:SetNWInt("Ammo", NewAmmo)
+
+		Wire_TriggerOutput(Launcher, "Shots Left", NewAmmo)
+	end
 end
 
 function ENT:ACF_Activate(Recalc)
@@ -470,7 +481,6 @@ function ENT:ACF_OnDamage(Entity, Energy, FrArea, Angle, Inflictor)
 
 		self:Detonate()
 	end
-	--This function needs to return HitRes
 
-	return HitRes
+	return HitRes -- This function needs to return HitRes
 end

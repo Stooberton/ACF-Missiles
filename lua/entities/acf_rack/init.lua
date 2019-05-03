@@ -12,17 +12,6 @@ local WireTable = {
 	gmod_wire_joystick_multi = true
 }
 
--- Missiles should clean themselves after being destroyed
-local function TrimNullMissiles(Rack)
-	if not next(Rack.Missiles) then return end
-
-	for i = #Rack.Missiles, 1, -1 do
-		if not IsValid(Rack.Missiles[i]) then
-			table.remove(Rack.Missiles, i)
-		end
-	end
-end
-
 local function GetCrate(Gun)
 	if not next(Gun.Crates) then return nil end -- No crates linked to this gun
 	local Select = next(Gun.Crates, Gun.CurrentCrate) or next(Gun.Crates) -- Next crate from Start or, if at last crate, first crate
@@ -38,10 +27,8 @@ end
 local function SetLoadedWeight(Rack)
 	local PhysObj = Rack:GetPhysicsObject()
 	Rack.ACFLegalMass = Rack.EmptyMass
-	TrimNullMissiles(Rack)
 
-	for i = 1, #Rack.Missiles do
-		local Missile = Rack.Missiles[i]
+	for _, Missile in pairs(Rack.Missiles) do
 		local PhysMissile = Missile:GetPhysicsObject()
 		Rack.ACFLegalMass = Rack.ACFLegalMass + Missile.RoundWeight
 
@@ -56,11 +43,23 @@ local function SetLoadedWeight(Rack)
 	end
 end
 
+local function GetNextAttachmentName(Rack)
+	if not Rack.AttachPoints then return nil end
+
+	for Name in pairs(Rack.AttachPoints) do
+		if not Rack.Missiles[Name] then
+			return Name
+		end
+	end
+
+	return nil
+end
+
 local function AddMissile(Rack)
-	TrimNullMissiles(Rack)
-	local Index = #Rack.Missiles
 	local Crate = GetCrate(Rack)
-	if Index >= Rack.MagSize then return false end
+	local Attach = GetNextAttachmentName(Rack)
+	if Rack.AmmoCount >= Rack.MagSize then return false end
+	if not Attach then return false end
 	if not IsValid(Crate) then return false end
 	local Owner = Rack.Owner
 	local BulletData = ACFM_CompactBulletData(Crate)
@@ -71,6 +70,7 @@ local function AddMissile(Rack)
 	Missile.DoNotDuplicate = true
 	Missile.Launcher = Rack
 	Missile.DisableDamage = Rack.ProtectMissile
+	Missile.Attachment = Attach
 	Missile:SetBulletData(BulletData)
 	local RackModel = ACF_GetRackValue(Rack.Id, "rackmdl") or ACF_GetGunValue(BulletData.Id, "rackmdl")
 
@@ -79,7 +79,7 @@ local function AddMissile(Rack)
 		Missile.RackModelApplied = true
 	end
 
-	local Muzzle = Rack:GetMuzzle(Missile, Index)
+	local Muzzle = Rack:GetMuzzle(Missile, Attach)
 	Missile:Spawn()
 	Missile:SetParent(Rack)
 	Missile:SetParentPhysNum(0)
@@ -91,29 +91,24 @@ local function AddMissile(Rack)
 	end
 
 	Rack:EmitSound("acf_extra/tankfx/resupply_single.wav", 500, 100)
-	Rack.Missiles[Index + 1] = Missile
+	Rack.Missiles[Attach] = Missile
+	Rack.AmmoCount = Rack.AmmoCount + 1
+	Rack:SetNWInt("Ammo", Rack.AmmoCount)
+
+	Wire_TriggerOutput(Rack, "Shots Left", Rack.AmmoCount)
+
 	Crate.Ammo = Crate.Ammo - 1
 	SetLoadedWeight(Rack)
 
 	return Missile
 end
 
-local function PeekMissile(Rack)
-	TrimNullMissiles(Rack)
-	if not next(Rack.Missiles) then return false end
-	local Index = #Rack.Missiles
-
-	return Rack.Missiles[Index], Index
-end
-
 local function Reload(Rack)
-	if not Rack.Ready and IsValid(PeekMissile(Rack)) then return end
-	if #Rack.Missiles >= Rack.MagSize then return false end
+	if not Rack.Ready and not GetNextAttachmentName(Rack) then return end
+	if Rack.AmmoCount >= Rack.MagSize then return false end
 	if not IsValid(GetCrate(Rack)) then return false end
 	if Rack.NextFire < 1 then return false end
 	local Missile = AddMissile(Rack)
-	TrimNullMissiles(Rack)
-	Rack:SetNWInt("Ammo", #Rack.Missiles)
 	Rack.NextFire = 0
 	Rack.PostReloadWait = CurTime() + 5
 	Rack.WaitFunction = Rack.GetReloadTime
@@ -129,36 +124,33 @@ local function CheckLegal(Rack)
 	return ACF_IsLegal(Rack) and Rack.Physical:IsSolid()
 end
 
-local function PopMissile(Rack)
-	local Missile, Index = PeekMissile(Rack)
-	if not Missile then return false end
-	table.remove(Rack.Missiles, Index)
-
-	return Missile, Index
-end
-
 local function FireMissile(Rack)
 	if CheckLegal(Rack) and Rack.Ready and Rack.PostReloadWait < CurTime() then
-		local NextMissile = PeekMissile(Rack)
-		local CanFire = NextMissile and hook.Run("ACF_FireShell", Rack, NextMissile.BulletData) or true
-		if not CanFire then return end
+		local Attachment, Missile = next(Rack.Missiles)
 		local ReloadTime = 0.5
-		local Missile, Index = PopMissile(Rack)
+
+		if hook.Run("ACF_FireShell", Rack, Missile.BulletData) == false then return end
 
 		if IsValid(Missile) then
+
 			ReloadTime = Rack:GetFireDelay(Missile)
-			local Muzzle = Rack:GetMuzzle(Missile, Index - 1)
+
+			local Muzzle = Rack:GetMuzzle(Missile, Attachment)
 			local MuzzleVec = Muzzle.Ang:Forward()
 			local ConeAng = math.tan(math.rad(Rack.Inaccuracy * ACF.GunInaccuracyScale))
 			local RandDirection = (Rack:GetUp() * math.Rand(-1, 1) + Rack:GetRight() * math.Rand(-1, 1)):GetNormalized()
 			local Spread = RandDirection * ConeAng * (math.random() ^ (1 / math.Clamp(ACF.GunInaccuracyBias, 0.5, 4)))
 			local ShootVec = (MuzzleVec + Spread):GetNormalized()
-			local Filter = {Rack, Missile}
-			table.Add(Filter, Rack.Missiles)
-			Missile.Filter = Filter
+
+			Missile.Filter = {Rack}
 			Missile.DisableDamage = false
 			Missile:SetParent(nil)
 			Missile:SetNoDraw(false)
+
+			for _, Load in pairs(Rack.Missiles) do
+				Missile.Filter[#Missile.Filter + 1] = Load
+			end
+
 			local BulletData = Missile.BulletData
 			local BulletSpeed = BulletData.MuzzleVel or Missile.MinimumSpeed or 1
 			BulletData.Pos = Rack:LocalToWorld(Muzzle.Pos)
@@ -179,11 +171,16 @@ local function FireMissile(Rack)
 				Missile.BulletData.Sound = Rack.Sound
 			end
 
+			Rack.Missiles[Attachment] = nil
+			Rack.AmmoCount = Rack.AmmoCount - 1
+			Rack:SetNWInt("Ammo", Rack.AmmoCount)
+
+			Wire_TriggerOutput(Rack, "Shots Left", Rack.AmmoCount)
+
 			Missile:DoFlight(BulletData.Pos, ShootVec)
 			Missile:Launch()
 			Missile:EmitSound("phx/epicmetal_hard.wav", 500, 100)
 			SetLoadedWeight(Rack)
-			Rack:SetNWInt("Ammo", #Rack.Missiles)
 		else
 			Rack:EmitSound("weapons/pistol/pistol_empty.wav", 500, 100)
 		end
@@ -358,24 +355,20 @@ function ENT:ACF_OnDamage(Entity, Energy, FrArea, Angle, Inflictor)
 	if HitRes.Kill then
 		-- Which bulletdata to use?! Let's let them figure that out.
 		if hook.Run("ACF_AmmoExplode", self, nil) == false then return HitRes end
-		TrimNullMissiles(self)
 		self.Exploded = true
 
 		if IsValid(Inflictor) and Inflictor:IsPlayer() then
 			self.Inflictor = Inflictor
 		end
 
-		local Missiles = self.Missiles
-
-		if next(Missiles) then
-			for i = #Missiles, 1, -1 do
-				Missiles[i]:Detonate()
+		if next(self.Missiles) then
+			for _, Missile in pairs(self.Missiles) do
+				Missile:Detonate()
 			end
 		end
 	end
-	--This function needs to return HitRes
 
-	return HitRes
+	return HitRes -- This function needs to return HitRes
 end
 
 function ENT:CanLoadCaliber(Caliber)
@@ -460,7 +453,6 @@ function ENT:TriggerInput(InputName, Value)
 			end
 
 			FireMissile(self)
-			self:Think()
 		end
 
 		self.Firing = Firing
@@ -474,24 +466,21 @@ function ENT:TriggerInput(InputName, Value)
 end
 
 function ENT:Think()
-	local Ammo = #self.Missiles
+	local _, Missile = next(self.Missiles)
 	local Time = CurTime()
 
 	if self.LastSend + 1 <= Time then
 		TrimDistantCrates(self)
 		UpdateRefillBonus(self)
-		TrimNullMissiles(self)
-		Wire_TriggerOutput(self, "Shots Left", Ammo)
-		self:SetNWInt("Ammo", Ammo)
-		self:GetReloadTime(PeekMissile(self))
+		self:GetReloadTime(Missile)
 		SetStatusString(self)
 		self.LastSend = Time
 	end
 
-	self.NextFire = math.min(self.NextFire + (Time - self.LastThink) / self:WaitFunction(PeekMissile(self)), 1)
+	self.NextFire = math.min(self.NextFire + (Time - self.LastThink) / self:WaitFunction(Missile), 1)
 
 	if self.NextFire >= 1 then
-		if Ammo > 0 then
+		if Missile then
 			self.Ready = true
 			Wire_TriggerOutput(self, "Ready", 1)
 
@@ -593,6 +582,8 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	Rack.LastSend			= 0
 	Rack.IsMaster			= true
 	Rack.LastThink			= CurTime()
+	Rack.AmmoCount			= 0
+	Rack.AttachPoints		= {}
 	Rack.Missiles			= {}
 	Rack.Crates				= {}
 
@@ -608,6 +599,10 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	Wire_TriggerOutput(Rack, "Entity", Rack)
 	Wire_TriggerOutput(Rack, "Ready", 1)
 
+	for _, Attachment in pairs(Rack:GetAttachments()) do
+		Rack.AttachPoints[Attachment.name] = true
+	end
+
 	Rack:SetNWString("Class", Rack.Class)
 	Rack:SetNWString("ID", Rack.Id)
 	Rack:SetNWString("GunType", Rack.MissileId or Rack.Id)
@@ -618,6 +613,8 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	if IsValid(PhysObj) then
 		PhysObj:SetMass(Rack.EmptyMass)
 	end
+
+	SetStatusString(Rack)
 
 	return Rack
 end
@@ -655,13 +652,13 @@ function ENT:PreEntityCopy()
 end
 
 function ENT:PostEntityPaste(Player, Ent, CreatedEntities)
-	self.Id = Ent.EntityMods.ACFRackInfo.Id
-	self.MissileId = Ent.EntityMods.ACFRackInfo.MissileId
-	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), self.Id, self.MissileId, self)
+	local Id = Ent.EntityMods.ACFRackInfo.Id
+	local MissileId = Ent.EntityMods.ACFRackInfo.MissileId
+	local AmmoLink = Ent.EntityMods.ACFAmmoLink
 
-	if Ent.EntityMods.ACFAmmoLink then
-		local AmmoLink = Ent.EntityMods.ACFAmmoLink
+	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), Id, MissileId, self)
 
+	if AmmoLink then
 		if AmmoLink.entities and next(AmmoLink.entities) then
 			for _, v in pairs(AmmoLink.entities) do
 				local Ammo = CreatedEntities[v]

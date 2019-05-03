@@ -6,34 +6,7 @@ ENT.Author = "Bubbus"
 ENT.Contact = "splambob@googlemail.com"
 ENT.Purpose = "Because launch tubes aren't cool enough."
 ENT.Instructions = "Point towards face for removal of face.  Point away from face for instant fake tan (then removal of face)."
-ENT.Spawnable = false
-ENT.AdminOnly = false
-ENT.RenderGroup = RENDERGROUP_OPAQUE
 ENT.WireDebugName = "ACF Rack"
-
-local function GetMunitionAngPos(Rack, Missile, Attach, AttachName)
-	local Parent = Rack:GetParent()
-	Rack:SetParent(nil)
-	local Attachment = Rack:GetAttachment(Attach)
-	local Gun = list.Get("ACFEnts").Guns[Missile.BulletData.Id]
-	local RackData = ACF.Weapons.Rack[Rack.Id]
-
-	if Gun and RackData then
-		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
-
-		local MountPoint = RackData.mountpoints[AttachName] or {
-			offset = Vector(),
-			scaledir = Vector(0, 0, -1)
-		}
-
-		Attachment.Pos = Rack:WorldToLocal(Attachment.Pos) + MountPoint.offset + MountPoint.scaledir * Offset
-		Attachment.Ang = Rack:GetAngles()
-	end
-
-	Rack:SetParent(Parent)
-
-	return Attachment
-end
 
 function ENT:GetOverlayText()
 	local WireName = self:GetNWString("WireName")
@@ -52,19 +25,34 @@ function ENT:GetOverlayText()
 	return Text
 end
 
-function ENT:GetMuzzle(Missile, Shot)
-	local AttachName = "missile" .. (Shot or 0) + 1
+function ENT:GetMuzzle(Missile, AttachName)
 	local Attach = self:LookupAttachment(AttachName)
-	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, AttachName) end
-	AttachName = "missile1"
-	Attach = self:LookupAttachment(AttachName)
-	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, AttachName) end
-	AttachName = "muzzle"
-	Attach = self:LookupAttachment(AttachName)
-	if Attach ~= 0 then return GetMunitionAngPos(self, Missile, Attach, AttachName) end
+	local Parent = self:GetParent()
 
-	return {
-		Pos = self:GetPos(),
-		Ang = self:GetAngles()
-	}
+	if Parent then
+		self:SetParent(nil)
+	end
+
+	local Gun = list.Get("ACFEnts").Guns[Missile.BulletData.Id]
+	local RackData = ACF.Weapons.Rack[self.Id]
+	local Attachment = self:GetAttachment(Attach)
+
+	Attachment.Ang = self:GetAngles()
+
+	if Gun and RackData then
+		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
+
+		local MountPoint = RackData.mountpoints[AttachName] or {
+			offset = Vector(),
+			scaledir = Vector(0, 0, -1)
+		}
+
+		Attachment.Pos = self:WorldToLocal(Attachment.Pos) + MountPoint.offset + MountPoint.scaledir * Offset
+	end
+
+	if Parent then
+		self:SetParent(Parent)
+	end
+
+	return Attachment
 end
