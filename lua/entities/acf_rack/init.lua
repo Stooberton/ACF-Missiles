@@ -125,9 +125,8 @@ local function FireMissile(Rack)
 		local Attachment, Missile = next(Rack.Missiles)
 		local ReloadTime = 0.5
 
-		if hook.Run("ACF_FireShell", Rack, Missile.BulletData) == false then return end
-
 		if IsValid(Missile) then
+			if hook.Run("ACF_FireShell", Rack, Missile.BulletData) == false then return end
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
