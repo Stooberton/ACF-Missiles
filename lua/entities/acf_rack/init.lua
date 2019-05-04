@@ -585,7 +585,7 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	Rack.AmmoCount			= 0
 	Rack.AttachPoints		= {}
 	Rack.Missiles			= {}
-	Rack.Crates				= {}
+	Rack.Crates				= Rack.Crates or {}
 
 	Rack.BulletData = {
 		Type = "Empty",
@@ -653,10 +653,9 @@ end
 
 function ENT:PostEntityPaste(Player, Ent, CreatedEntities)
 	local Id = Ent.EntityMods.ACFRackInfo.Id
-	local MissileId = Ent.EntityMods.ACFRackInfo.MissileId
 	local AmmoLink = Ent.EntityMods.ACFAmmoLink
 
-	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), Id, MissileId, self)
+	self.MissileId = Ent.EntityMods.ACFRackInfo.MissileId
 
 	if AmmoLink then
 		if AmmoLink.entities and next(AmmoLink.entities) then
@@ -665,12 +664,18 @@ function ENT:PostEntityPaste(Player, Ent, CreatedEntities)
 
 				if IsValid(Ammo) and Ammo:GetClass() == "acf_ammo" then
 					self:Link(Ammo)
+
+					if not self.MissileId then
+						self.MissileId = Ammo.RoundId
+					end
 				end
 			end
 		end
 
 		Ent.EntityMods.ACFAmmoLink = nil
 	end
+
+	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), Id, self.MissileId, self)
 
 	-- Wire dupe info
 	self.BaseClass.PostEntityPaste(self, Player, Ent, CreatedEntities)
