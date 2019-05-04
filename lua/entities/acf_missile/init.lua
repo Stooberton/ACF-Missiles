@@ -416,14 +416,7 @@ function ENT:OnRemove()
 	ACF_ActiveMissiles[self] = nil
 
 	if self.Launcher and not self.Launched then
-		local Launcher = self.Launcher
-		local NewAmmo = Launcher.AmmoCount - 1
-
-		Launcher.Missiles[self.Attachment] = nil
-		Launcher.AmmoCount = NewAmmo
-		Launcher:SetNWInt("Ammo", NewAmmo)
-
-		Wire_TriggerOutput(Launcher, "Shots Left", NewAmmo)
+		self.Launcher:UpdateAmmoCount(self.Attachment)
 	end
 end
 

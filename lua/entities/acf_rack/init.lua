@@ -91,11 +91,7 @@ local function AddMissile(Rack)
 	end
 
 	Rack:EmitSound("acf_extra/tankfx/resupply_single.wav", 500, 100)
-	Rack.Missiles[Attach] = Missile
-	Rack.AmmoCount = Rack.AmmoCount + 1
-	Rack:SetNWInt("Ammo", Rack.AmmoCount)
-
-	Wire_TriggerOutput(Rack, "Shots Left", Rack.AmmoCount)
+	Rack:UpdateAmmoCount(Attach, Missile)
 
 	Crate.Ammo = Crate.Ammo - 1
 	SetLoadedWeight(Rack)
@@ -171,11 +167,7 @@ local function FireMissile(Rack)
 				Missile.BulletData.Sound = Rack.Sound
 			end
 
-			Rack.Missiles[Attachment] = nil
-			Rack.AmmoCount = Rack.AmmoCount - 1
-			Rack:SetNWInt("Ammo", Rack.AmmoCount)
-
-			Wire_TriggerOutput(Rack, "Shots Left", Rack.AmmoCount)
+			Rack:UpdateAmmoCount(Attachment)
 
 			Missile:DoFlight(BulletData.Pos, ShootVec)
 			Missile:Launch()
@@ -463,6 +455,14 @@ function ENT:TriggerInput(InputName, Value)
 	elseif InputName == "Target Ent" then
 		Wire_TriggerOutput(self, "Target", Value)
 	end
+end
+
+function ENT:UpdateAmmoCount(Attachment, Missile)
+	self.Missiles[Attachment] = Missile
+	self.AmmoCount = self.AmmoCount + (Missile and 1 or -1)
+	self:SetNWInt("Ammo", self.AmmoCount)
+
+	Wire_TriggerOutput(self, "Shots Left", self.AmmoCount)
 end
 
 function ENT:Think()
