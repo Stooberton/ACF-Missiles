@@ -284,7 +284,7 @@ local function CalcFlight(Missile)
 end
 
 local function CanDrive(Player, Ent)
-	if ent:GetClass() == "acf_missile" then return false end
+	if Ent:GetClass() == "acf_missile" then return false end
 end
 
 hook.Add("CanDrive", "ACF_Missile_CanDrive", CanDrive)
