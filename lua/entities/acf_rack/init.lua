@@ -4,14 +4,6 @@ AddCSLuaFile("shared.lua")
 AddCSLuaFile("cl_init.lua")
 include("shared.lua")
 
-local WireTable = {
-	gmod_wire_adv_pod = true,
-	gmod_wire_pod = true,
-	gmod_wire_keyboard = true,
-	gmod_wire_joystick = true,
-	gmod_wire_joystick_multi = true
-}
-
 local function GetCrate(Gun)
 	if not next(Gun.Crates) then return nil end -- No crates linked to this gun
 	local Select = next(Gun.Crates, Gun.CurrentCrate) or next(Gun.Crates) -- Next crate from Start or, if at last crate, first crate
@@ -138,7 +130,6 @@ local function FireMissile(Rack)
 			local ShootVec = (MuzzleVec + Spread):GetNormalized()
 
 			Missile.Filter = {Rack}
-			Missile.DisableDamage = false
 			Missile:SetParent(nil)
 			Missile:SetNoDraw(false)
 
@@ -148,8 +139,6 @@ local function FireMissile(Rack)
 
 			local BulletData = Missile.BulletData
 			local BulletSpeed = BulletData.MuzzleVel or Missile.MinimumSpeed or 1
-			BulletData.Pos = Rack:LocalToWorld(Muzzle.Pos)
-			BulletData.Flight = ShootVec * BulletSpeed
 
 			if Missile.RackModelApplied then
 				Missile:SetModelEasy(ACF_GetGunValue(BulletData.Id, "model"))
@@ -160,6 +149,29 @@ local function FireMissile(Rack)
 
 			if IsValid(PhysMissile) then
 				PhysMissile:SetMass(Missile.RoundWeight)
+
+				BulletData.Flight = ShootVec * BulletSpeed
+
+				if Rack.FireDelay and Rack.FireDelay > 0 then
+					PhysMissile:EnableMotion(true)
+					PhysMissile:EnableGravity(true)
+					PhysMissile:SetVelocity(Rack.Physical:GetVelocity())
+
+					timer.Simple(Rack.FireDelay, function()
+						if not Missile.Disabled then
+							BulletData.Flight = Missile:GetForward() * BulletSpeed
+
+							PhysMissile:EnableMotion(false)
+							PhysMissile:EnableGravity(false)
+
+							Missile:DoFlight(Missile:GetPos(), BulletData.Flight:GetNormalized())
+							Missile:Launch()
+						end
+					end)
+				else
+					Missile:DoFlight(Rack:LocalToWorld(Muzzle.Pos), ShootVec)
+					Missile:Launch()
+				end
 			end
 
 			if Rack.Sound and Rack.Sound ~= "" then
@@ -168,8 +180,6 @@ local function FireMissile(Rack)
 
 			Rack:UpdateAmmoCount(Attachment)
 
-			Missile:DoFlight(BulletData.Pos, ShootVec)
-			Missile:Launch()
 			Missile:EmitSound("phx/epicmetal_hard.wav", 500, 100)
 			SetLoadedWeight(Rack)
 		else
@@ -403,6 +413,14 @@ function ENT:UnloadAmmo()
 	-- we're ok with mixed munitions.
 end
 
+local WireTable = {
+	gmod_wire_adv_pod = true,
+	gmod_wire_pod = true,
+	gmod_wire_keyboard = true,
+	gmod_wire_joystick = true,
+	gmod_wire_joystick_multi = true
+}
+
 function ENT:GetUser(Input)
 	if not Input then return nil end
 
@@ -432,27 +450,39 @@ function ENT:GetUser(Input)
 	return Input.Owner or Input:GetOwner()
 end
 
-function ENT:TriggerInput(InputName, Value)
-	if InputName == "Fire" then
-		local Firing = ACF.GunfireEnabled and Value ~= 0
+local Inputs = {
+	Fire = function(Rack, Value)
+		Rack.Firing = ACF.GunfireEnabled and Value ~= 0
 
-		if Firing and self.NextFire >= 1 then
-			self.User = self:GetUser(self.Inputs.Fire.Src)
+		if Rack.Firing and Rack.NextFire >= 1 then
+			Rack.User = Rack:GetUser(Rack.Inputs.Fire.Src)
 
-			if not IsValid(self.User) then
-				self.User = self.Owner
+			if not IsValid(Rack.User) then
+				Rack.User = Rack.Owner
 			end
 
-			FireMissile(self)
+			FireMissile(Rack)
 		end
+	end,
+	["Fire Delay"] = function(Rack, Value)
+		Rack.FireDelay = math.Clamp(Value, 0, 1)
+	end,
+	Reload = function(Rack, Value)
+		if Value ~= 0 then
+			Reload(Rack)
+		end
+	end,
+	["Target Pos"] = function(Rack, Value)
+		Wire_TriggerOutput(Rack, "Position", Value)
+	end,
+	["Target Ent"] = function(Rack, Value)
+		Wire_TriggerOutput(Rack, "Target", Value)
+	end,
+}
 
-		self.Firing = Firing
-	elseif InputName == "Reload" and Value ~= 0 then
-		Reload(self)
-	elseif InputName == "Target Pos" then
-		Wire_TriggerOutput(self, "Position", Value)
-	elseif InputName == "Target Ent" then
-		Wire_TriggerOutput(self, "Target", Value)
+function ENT:TriggerInput(Input, Value)
+	if Inputs[Input] then
+		Inputs[Input](self, Value)
 	end
 end
 
@@ -508,13 +538,13 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	if not Owner:CheckLimit("_acf_gun") then return false end
 
 	local Rack = UpdateRack or ents.Create("acf_rack")
+	local GunClass = ACF.Weapons.Guns[MissileId]
 
 	if not IsValid(Rack) then return false end
 
 	Id = Id or Rack.Id
 
 	if not Id or not ACF.Weapons.Rack[Id] then
-		local GunClass = ACF.Weapons.Guns[MissileId]
 
 		if not GunClass then
 			error("Couldn't spawn the missile rack: can't find the gun-class '" + tostring(MissileId) + "'.")
@@ -526,7 +556,7 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	end
 
 	local GunDef = ACF.Weapons.Rack[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
-	local GunClass = ACF.Classes.Rack[GunDef.gunclass] or error("Couldn't find the " .. tostring(Rack.Class) .. " gun-class!")
+	local RackClass = ACF.Classes.Rack[GunDef.gunclass] or error("Couldn't find the " .. tostring(Rack.Class) .. " gun-class!")
 
 	if not UpdateRack then
 		Rack:SetPlayer(Owner)
@@ -537,7 +567,6 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 
 		Rack:PhysicsInit(SOLID_VPHYSICS)
 		Rack:SetMoveType(MOVETYPE_VPHYSICS)
-		Rack:SetSolid(SOLID_VPHYSICS)
 
 		Owner:AddCount("_acf_gun", Rack)
 		Owner:AddCleanup("acfmenu", Rack)
@@ -551,34 +580,30 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	Rack.Owner				= Owner
 	Rack.Id					= Id
 	Rack.MissileId			= MissileId
-	Rack.MinCaliber			= GunDef.mincaliber
-	Rack.MaxCaliber			= GunDef.maxcaliber
-	Rack.caliber			= GunDef.caliber
 	Rack.Model				= GunDef.model
 	Rack.EmptyMass			= GunDef.weight
 	Rack.ACFLegalMass		= Rack.EmptyMass
 	Rack.Class				= GunDef.gunclass
-	Rack.RoFmod				= GunClass.rofmod or 1
+	Rack.RoFmod				= RackClass.rofmod or 1
 	Rack.PGRoFmod			= math.max(0, Rack.RoFmod) -- Custom BS for karbine. Per Rack ROF.
 	Rack.MagSize			= GunDef.magsize and math.max(1, GunDef.magsize) or 1 -- Custom BS for karbine. Magazine Size, Mag reload Time
 	Rack.MagReload			= GunDef.magreload and math.max(0, GunDef.magreload) or 0
-	Rack.Muzzleflash		= GunDef.muzzleflash or GunClass.muzzleflash or ""
-	Rack.Sound				= GunDef.sound or GunClass.sound
-	Rack.Inaccuracy			= GunClass.spread
+	Rack.Sound				= GunDef.sound or RackClass.sound
+	Rack.Inaccuracy			= RackClass.spread
 	Rack.HideMissile		= ACF_GetRackValue(Id, "hidemissile")
-	Rack.ProtectMissile		= GunDef.protectmissile or GunClass.protectmissile
-	Rack.CustomArmour		= GunDef.armour or GunClass.armour
+	Rack.ProtectMissile		= GunDef.protectmissile or RackClass.protectmissile
+	Rack.CustomArmour		= GunDef.armour or RackClass.armour
 	Rack.ReloadMultiplier	= ACF_GetRackValue(Id, "reloadmul")
 	Rack.WhitelistOnly		= ACF_GetRackValue(Id, "whitelistonly")
 	Rack.SpecialHealth		= true -- If true needs a special ACF_Activate function
 	Rack.SpecialDamage		= true -- If true needs a special ACF_OnDamage function
 	Rack.ReloadTime			= 1
 	Rack.Ready				= true
-	Rack.Firing				= nil
 	Rack.NextFire			= 1
 	Rack.PostReloadWait		= CurTime()
 	Rack.WaitFunction		= Rack.GetFireDelay
 	Rack.LastSend			= 0
+	Rack.FireDelay			= GunClass and GunClass.CanDelay and 0
 	Rack.IsMaster			= true
 	Rack.LastThink			= CurTime()
 	Rack.AmmoCount			= 0
@@ -592,7 +617,7 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 		ProjMass = 0
 	}
 
-	Rack.Inputs = WireLib.CreateInputs(Rack, {"Fire", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]"})
+	Rack.Inputs = Rack.FireDelay and WireLib.CreateInputs(Rack, {"Fire", "Fire Delay", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]"}) or WireLib.CreateInputs(Rack, {"Fire", "Reload", "Target Pos [VECTOR]", "Target Ent [ENTITY]"})
 	Rack.Outputs = WireLib.CreateOutputs(Rack, {"Ready", "Entity [ENTITY]", "Shots Left", "Position [VECTOR]", "Target [ENTITY]"})
 
 	Wire_TriggerOutput(Rack, "Entity", Rack)

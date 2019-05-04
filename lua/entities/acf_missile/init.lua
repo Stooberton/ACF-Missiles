@@ -126,8 +126,7 @@ local function Dud(Missile)
 	local LastVel = Missile.LastVel
 	local CurDir = Missile.CurDir
 	local HitNorm = Missile.HitNorm
-	Missile:SetPos(Missile.CurPos)
-	Missile:SetAngles(CurDir:Angle())
+
 	PhysObj:EnableGravity(true)
 	PhysObj:EnableMotion(true)
 
@@ -323,6 +322,14 @@ function ENT:SetBulletData(BulletData)
 	ConfigureFlight(self)
 end
 
+function ENT:PhysicsCollide(Data)
+	if not self.Disabled and not self.Launched then
+		self.Disabled = true
+		self.LastVel = Data.OurOldVelocity
+		self:Detonate()
+	end
+end
+
 function ENT:Launch()
 	if not self.Guidance then
 		SetGuidance(self, ACF.Guidance.Dumb())
@@ -336,11 +343,8 @@ function ENT:Launch()
 	self.Fuse:Configure(self, self.Guidance)
 	self.Launched = true
 	self.ThinkDelay = engine.TickInterval()
-	self.Filter = self.Filter or {self}
 	self.GhostPeriod = CurTime() + ACFM_GhostPeriod:GetFloat()
 	self.DisableDamage = nil
-	self:SetParent(nil)
-	self:GetPhysicsObject():EnableMotion(false)
 	ConfigureFlight(self)
 
 	if self.Motor > 0 or self.MotorLength > 0.1 then
@@ -356,11 +360,12 @@ end
 function ENT:Detonate()
 	self.Motor = 0
 	self.Exploded = true
+	self.Disabled = self.Disabled or self.Fuse and (CurTime() - self.Fuse.TimeStarted < self.MinArmingDelay or not self.Fuse:IsArmed())
 	self:StopParticles()
 	self:SetNWFloat("LightSize", 0)
 	ACF_ActiveMissiles[self] = nil
 
-	if self.Fuse and (CurTime() - self.Fuse.TimeStarted < self.MinArmingDelay or not self.Fuse:IsArmed()) then
+	if self.Disabled then
 		Dud(self)
 
 		return
@@ -415,7 +420,7 @@ function ENT:OnRemove()
 	self.BaseClass.OnRemove(self)
 	ACF_ActiveMissiles[self] = nil
 
-	if self.Launcher and not self.Launched then
+	if IsValid(self.Launcher) and not self.Launched then
 		self.Launcher:UpdateAmmoCount(self.Attachment)
 	end
 end

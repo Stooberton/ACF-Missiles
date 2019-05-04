@@ -144,6 +144,7 @@ ACF_defineGun("AIM-120 AAM", { --id
     ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Radar"},
     fuses       = {"Contact", "Radio"},
+	CanDelay	= true,
 
 	racks       = {["1xRK"] = true, ["2xRK"] = true},   -- a whitelist for racks that this missile can load into.  can also be a 'function(bulletData, rackEntity) return boolean end'
 
@@ -187,6 +188,7 @@ ACF_defineGun("AIM-54 AAM", { --id
     ent         = "acf_rack", -- A workaround ent which spawns an appropriate rack for the missile.
 	guidance    = {"Dumb", "Radar"},
     fuses       = {"Contact", "Radio"},
+	CanDelay	= true,
 
 	racks       = {["1xRK"] = true},   -- a whitelist for racks that this missile can load into.  can also be a 'function(bulletData, rackEntity) return boolean end'
 

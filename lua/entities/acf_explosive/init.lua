@@ -93,8 +93,6 @@ function ENT:SetModelEasy(Model)
 	self.Model = Model
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetMoveType(MOVETYPE_VPHYSICS)
-	self:SetSolid(SOLID_VPHYSICS)
-	self:SetCollisionGroup(COLLISION_GROUP_WORLD)
 	local PhysObj = self:GetPhysicsObject()
 
 	if IsValid(PhysObj) then
