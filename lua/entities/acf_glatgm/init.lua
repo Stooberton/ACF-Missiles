@@ -16,7 +16,6 @@ function ENT:Initialize()
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetUseType(SIMPLE_USE)
-	self:SetSolid(SOLID_VPHYSICS)
 
 	timer.Simple(0.1, function()
 		ParticleEffectAttach("Rocket_Smoke_Trail", 4, self, 1)

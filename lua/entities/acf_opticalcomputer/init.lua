@@ -8,7 +8,6 @@ function ENT:Initialize()
 	self:SetMoveType(MOVETYPE_VPHYSICS)
 	self:PhysicsInit(SOLID_VPHYSICS)
 	self:SetUseType(SIMPLE_USE)
-	self:SetSolid(SOLID_VPHYSICS)
 end
 
 function ENT:Think()
