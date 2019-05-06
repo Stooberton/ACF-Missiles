@@ -24,35 +24,3 @@ function ENT:GetOverlayText()
 
 	return Text
 end
-
-function ENT:GetMuzzle(Missile, AttachName)
-	local Attach = self:LookupAttachment(AttachName)
-	local Parent = self:GetParent()
-
-	if Parent then
-		self:SetParent(nil)
-	end
-
-	local Gun = list.Get("ACFEnts").Guns[Missile.BulletData.Id]
-	local RackData = ACF.Weapons.Rack[self.Id]
-	local Attachment = self:GetAttachment(Attach)
-
-	Attachment.Ang = self:GetAngles()
-
-	if Gun and RackData then
-		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
-
-		local MountPoint = RackData.mountpoints[AttachName] or {
-			offset = Vector(),
-			scaledir = Vector(0, 0, -1)
-		}
-
-		Attachment.Pos = self:WorldToLocal(Attachment.Pos) + MountPoint.offset + MountPoint.scaledir * Offset
-	end
-
-	if Parent then
-		self:SetParent(Parent)
-	end
-
-	return Attachment
-end

@@ -47,6 +47,25 @@ local function GetNextAttachmentName(Rack)
 	return nil
 end
 
+local function GetMissileAngPos(Rack, Missile, AttachName)
+	local Gun = list.Get("ACFEnts").Guns[Missile.BulletData.Id]
+	local RackData = ACF.Weapons.Rack[Rack.Id]
+	local Position = Rack.AttachPoints[AttachName]
+
+	if Gun and RackData then
+		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
+
+		local MountPoint = RackData.mountpoints[AttachName] or {
+			offset = Vector(),
+			scaledir = Vector(0, 0, -1)
+		}
+
+		Position = Position + MountPoint.offset + MountPoint.scaledir * Offset
+	end
+
+	return { Pos = Position, Ang = Rack:GetAngles() }
+end
+
 local function AddMissile(Rack)
 	local Crate = GetCrate(Rack)
 	local Attach = GetNextAttachmentName(Rack)
@@ -71,7 +90,7 @@ local function AddMissile(Rack)
 		Missile.RackModelApplied = true
 	end
 
-	local Muzzle = Rack:GetMuzzle(Missile, Attach)
+	local Muzzle = GetMissileAngPos(Rack, Missile, Attach)
 	Missile:Spawn()
 	Missile:SetParent(Rack)
 	Missile:SetParentPhysNum(0)
@@ -122,7 +141,7 @@ local function FireMissile(Rack)
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
-			local Muzzle = Rack:GetMuzzle(Missile, Attachment)
+			local Muzzle = GetMissileAngPos(Rack, Missile, Attachment)
 			local MuzzleVec = Muzzle.Ang:Forward()
 			local ConeAng = math.tan(math.rad(Rack.Inaccuracy * ACF.GunInaccuracyScale))
 			local RandDirection = (Rack:GetUp() * math.Rand(-1, 1) + Rack:GetRight() * math.Rand(-1, 1)):GetNormalized()
@@ -616,8 +635,10 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId)
 	Wire_TriggerOutput(Rack, "Entity", Rack)
 	Wire_TriggerOutput(Rack, "Ready", 1)
 
-	for _, Attachment in pairs(Rack:GetAttachments()) do
-		Rack.AttachPoints[Attachment.name] = true
+	for _, Data in pairs(Rack:GetAttachments()) do
+		local Attachment = Rack:GetAttachment(Data.id)
+
+		Rack.AttachPoints[Data.name] = Rack:WorldToLocal(Attachment.Pos)
 	end
 
 	Rack:SetNWString("Class", Rack.Class)
