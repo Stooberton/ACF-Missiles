@@ -9,8 +9,9 @@ end
 
 function ENT:DoNormalDraw()
 	local SelfPos = self:GetPos()
+
 	if not self:GetNWBool("VisInfo") then return end
-	if not LocalPlayer():GetEyeTrace().Entity == self and EyePos():Distance(SelfPos) < 256 then return end
+	if LocalPlayer():GetEyeTrace().Entity ~= self or EyePos():Distance(SelfPos) > 256 then return end
 	local OverlayText = self:GetOverlayText()
 
 	if OverlayText ~= "" then
