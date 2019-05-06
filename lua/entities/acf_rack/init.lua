@@ -534,10 +534,10 @@ function ENT:Think()
 	return true
 end
 
-function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
+function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId)
 	if not Owner:CheckLimit("_acf_gun") then return false end
 
-	local Rack = UpdateRack or ents.Create("acf_rack")
+	local Rack = ents.Create("acf_rack")
 	local GunClass = ACF.Weapons.Guns[MissileId]
 
 	if not IsValid(Rack) then return false end
@@ -558,24 +558,17 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId, UpdateRack)
 	local GunDef = ACF.Weapons.Rack[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
 	local RackClass = ACF.Classes.Rack[GunDef.gunclass] or error("Couldn't find the " .. tostring(Rack.Class) .. " gun-class!")
 
-	if not UpdateRack then
-		Rack:SetPlayer(Owner)
-		Rack:SetModel(GunDef.model)
-		Rack:SetAngles(Angle)
-		Rack:SetPos(Pos)
-		Rack:Spawn()
+	Rack:SetPlayer(Owner)
+	Rack:SetModel(GunDef.model)
+	Rack:SetAngles(Angle)
+	Rack:SetPos(Pos)
+	Rack:Spawn()
 
-		Rack:PhysicsInit(SOLID_VPHYSICS)
-		Rack:SetMoveType(MOVETYPE_VPHYSICS)
+	Rack:PhysicsInit(SOLID_VPHYSICS)
+	Rack:SetMoveType(MOVETYPE_VPHYSICS)
 
-		Owner:AddCount("_acf_gun", Rack)
-		Owner:AddCleanup("acfmenu", Rack)
-
-		undo.Create("acf_rack")
-		undo.AddEntity(Rack)
-		undo.SetPlayer(Owner)
-		undo.Finish()
-	end
+	Owner:AddCount("_acf_gun", Rack)
+	Owner:AddCleanup("acfmenu", Rack)
 
 	Rack.Owner				= Owner
 	Rack.Id					= Id
@@ -676,29 +669,28 @@ function ENT:PreEntityCopy()
 end
 
 function ENT:PostEntityPaste(Player, Ent, CreatedEntities)
-	local Id = Ent.EntityMods.ACFRackInfo.Id
-	local MissileId = Ent.EntityMods.ACFRackInfo.MissileId
 	local AmmoLink = Ent.EntityMods.ACFAmmoLink
+	local MissileId = Ent.EntityMods.ACFRackInfo.MissileId
 
-	if AmmoLink then
-		if AmmoLink.entities and next(AmmoLink.entities) then
-			for _, v in pairs(AmmoLink.entities) do
-				local Ammo = CreatedEntities[v]
+	if MissileId then
+		self.MissileId = MissileId
+	end
 
-				if IsValid(Ammo) and Ammo:GetClass() == "acf_ammo" then
-					self:Link(Ammo)
+	if AmmoLink and AmmoLink.entities then
+		for _, Index in pairs(AmmoLink.entities) do
+			local Ammo = CreatedEntities[Index]
 
-					if not MissileId then
-						MissileId = Ammo.RoundId
-					end
+			if IsValid(Ammo) and Ammo:GetClass() == "acf_ammo" then
+				self:Link(Ammo)
+
+				if not self.MissileId then
+					self.MissileId = Ammo.RoundId
 				end
 			end
 		end
 
 		Ent.EntityMods.ACFAmmoLink = nil
 	end
-
-	MakeACF_Rack(self.Owner, self:GetPos(), self:GetAngles(), Id, MissileId, self)
 
 	-- Wire dupe info
 	self.BaseClass.PostEntityPaste(self, Player, Ent, CreatedEntities)
