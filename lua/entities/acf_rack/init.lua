@@ -63,7 +63,7 @@ local function GetMissileAngPos(Rack, Missile, AttachName)
 		Position = Position + MountPoint.offset + MountPoint.scaledir * Offset
 	end
 
-	return { Pos = Position, Ang = Rack:GetAngles() }
+	return Position, Rack:GetAngles()
 end
 
 local function AddMissile(Rack)
@@ -90,12 +90,12 @@ local function AddMissile(Rack)
 		Missile.RackModelApplied = true
 	end
 
-	local Muzzle = GetMissileAngPos(Rack, Missile, Attach)
+	local Pos, Angles = GetMissileAngPos(Rack, Missile, Attach)
 	Missile:Spawn()
 	Missile:SetParent(Rack)
 	Missile:SetParentPhysNum(0)
-	Missile:SetPos(Muzzle.Pos)
-	Missile:SetAngles(Muzzle.Ang)
+	Missile:SetPos(Pos)
+	Missile:SetAngles(Angles)
 
 	if Rack.HideMissile then
 		Missile:SetNoDraw(true)
@@ -141,8 +141,8 @@ local function FireMissile(Rack)
 
 			ReloadTime = Rack:GetFireDelay(Missile)
 
-			local Muzzle = GetMissileAngPos(Rack, Missile, Attachment)
-			local MuzzleVec = Muzzle.Ang:Forward()
+			local Pos, Angles = GetMissileAngPos(Rack, Missile, Attachment)
+			local MuzzleVec = Angles:Forward()
 			local ConeAng = math.tan(math.rad(Rack.Inaccuracy * ACF.GunInaccuracyScale))
 			local RandDirection = (Rack:GetUp() * math.Rand(-1, 1) + Rack:GetRight() * math.Rand(-1, 1)):GetNormalized()
 			local Spread = RandDirection * ConeAng * (math.random() ^ (1 / math.Clamp(ACF.GunInaccuracyBias, 0.5, 4)))
@@ -188,7 +188,7 @@ local function FireMissile(Rack)
 						end
 					end)
 				else
-					Missile:DoFlight(Rack:LocalToWorld(Muzzle.Pos), ShootVec)
+					Missile:DoFlight(Rack:LocalToWorld(Pos), ShootVec)
 					Missile:Launch()
 				end
 			end
