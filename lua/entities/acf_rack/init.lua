@@ -635,10 +635,14 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId)
 	Wire_TriggerOutput(Rack, "Entity", Rack)
 	Wire_TriggerOutput(Rack, "Ready", 1)
 
+	local MountPoints = ACF.Weapons.Rack[Rack.Id].mountpoints
+
 	for _, Data in pairs(Rack:GetAttachments()) do
 		local Attachment = Rack:GetAttachment(Data.id)
 
-		Rack.AttachPoints[Data.name] = Rack:WorldToLocal(Attachment.Pos)
+		if MountPoints[Data.name] then
+			Rack.AttachPoints[Data.name] = Rack:WorldToLocal(Attachment.Pos)
+		end
 	end
 
 	Rack:SetNWString("Class", Rack.Class)
