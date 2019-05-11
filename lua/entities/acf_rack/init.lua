@@ -36,13 +36,18 @@ local function SetLoadedWeight(Rack)
 end
 
 local function GetNextAttachmentName(Rack)
-	if not Rack.AttachPoints then return nil end
+	if not next(Rack.AttachPoints) then return nil end
 
-	for Name in pairs(Rack.AttachPoints) do
+	local Name = next(Rack.AttachPoints)
+	local Start = Name
+
+	repeat
+		Name = next(Rack.AttachPoints, Name) or next(Rack.AttachPoints)
+
 		if not Rack.Missiles[Name] then
 			return Name
 		end
-	end
+	until Name == Start
 
 	return nil
 end
