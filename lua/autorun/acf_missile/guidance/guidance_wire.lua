@@ -1,152 +1,76 @@
 local ClassName = "Wire"
 ACF = ACF or {}
 ACF.Guidance = ACF.Guidance or {}
-local this = ACF.Guidance[ClassName] or inherit.NewSubOf(ACF.Guidance.Dumb)
-ACF.Guidance[ClassName] = this
----
-this.Name = ClassName
--- An entity with a Position wire-output
-this.InputSource = nil
--- Length of the guidance wire
-this.WireLength = 15748 -- about 400m
--- Disables guidance when true
-this.WireSnapped = false
-this.desc = "This guidance package is controlled by the launcher, which reads a target-position and steers the munition towards it."
+ACF.Guidance[ClassName] = ACF.Guidance[ClassName] or inherit.NewSubOf(ACF.Guidance.Dumb)
 
-function this:Init()
-end
+local Guidance = ACF.Guidance[ClassName]
+local WireLength = 31496 * 31496 -- Length of the guidance wire (800m)
 
--- Use this to make sure you don't alter the shared default filter unintentionally
-function this:GetSeekFilter(class)
-	if self.Filter == self.DefaultFilter then
-		self.Filter = table.Copy(self.DefaultFilter)
+local function GetWireTarget(GuidanceData)
+	local Outputs = GuidanceData.Source.Outputs
+	local TargetOutput = Outputs.Target
+	local PosOutput = Outputs.Position
+	local TargetPos
+
+	if PosOutput and PosOutput.Value ~= Vector() then
+		TargetPos = PosOutput.Value
+	elseif TargetOutput and IsValid(TargetOutput.Value) then
+		TargetPos = TargetOutput.Value:GetPos()
 	end
 
-	return self.Filter
+	return TargetPos
 end
 
-function this:Configure(missile)
-	local launcher = missile.Launcher
-	local outputs = launcher.Outputs
+local function GetRackAimPos(Launcher, Missile)
+	local Trace = util.QuickTrace(
+		Launcher:GetPos(),
+		Launcher:GetForward() * 50000,
+		{Launcher, Missile}
+	)
 
-	if outputs then
-		local names = self:GetNamedWireInputs(missile)
-
-		if #names > 0 then
-			self.InputSource = launcher
-			self.InputNames = names
-		else
-			names = self:GetFallbackWireInputs(missile)
-
-			if #names > 0 then
-				self.InputSource = launcher
-				self.InputNames = names
-			end
-		end
-	end
-
-	self.WireSnapped = false
+	return Trace.HitPos
 end
 
-function this:GetNamedWireInputs(missile)
-	local launcher = missile.Launcher
-	local outputs = launcher.Outputs
-	local names = {}
-
-	-- If we have a Position output, we're in business.
-	if outputs.Position and outputs.Position.Type == "VECTOR" then
-		names[#names + 1] = "Position"
-	end
-
-	if outputs.Target and outputs.Target.Type == "ENTITY" then
-		names[#names + 1] = "Target"
-	end
-
-	return names
+function Guidance:Init()
+	self.Name = ClassName
+	self.desc = "This guidance package is controlled by the Launcher, which reads a target-position and steers the munition towards it."
 end
 
-function this:GetFallbackWireInputs(missile)
-	local launcher = missile.Launcher
-	local outputs = launcher.Outputs
-	-- To avoid ambiguity, only link if there's a single vector output.
-	local foundOutput = nil
-
-	for k, v in pairs(outputs) do
-		if v.Type == "VECTOR" then
-			if foundOutput then
-				foundOutput = nil
-				break
-			else
-				foundOutput = k
-			end
-		end
-	end
-
-	if foundOutput then return {foundOutput} end
+function Guidance:Configure(Missile)
+	self.Source = Missile.Launcher
 end
 
-function this:GetGuidance(missile)
-	local launcher = self.InputSource
-	if not IsValid(launcher) then return {} end
-	local launcherPos = launcher:GetPos()
-	local distMsl = missile:GetPos():DistToSqr(launcherPos) -- We're using squared distance to optimise
+function Guidance:GetGuidance(Missile)
+	if not IsValid(self.Source) then return {} end
+	if Missile.WireSnapped then return {} end
+	local Launcher = self.Source
+	local SourcePos = Launcher:GetPos()
+	local MissileDist = Missile:GetPos():DistToSqr(SourcePos) -- We're using squared distance to optimise
 
-	if distMsl > self.WireLength ^ 2 then
-		self.WireSnapped = true
+	if MissileDist > WireLength then
+		local SoundName = "physics/shield/bullet_hit_shield_0" .. math.random(7) .. ".wav"
+		sound.Play(SoundName, SourcePos, 75, 100, 1)
+
+		Missile.WireSnapped = true
 
 		return {
 			TargetPos = nil
 		}
 	end
 
-	local posVec = self:GetWireTarget()
+	local AimPos = GetWireTarget(self) or GetRackAimPos(Launcher, Missile)
+	local AimDist = AimPos:DistToSqr(SourcePos)
+	local TargetPos = MissileDist <= AimDist and AimPos or nil
 
-	if not posVec or type(posVec) ~= "Vector" or posVec == Vector() then
-		return {
-			TargetPos = nil
-		}
-	else
-		local distTrgt = posVec:DistToSqr(launcherPos)
-
-		if distMsl > distTrgt then
-			return {
-				TargetPos = nil
-			}
-		end
-	end
-
-	self.TargetPos = posVec
+	self.TargetPos = TargetPos
 
 	return {
-		TargetPos = posVec
+		TargetPos = TargetPos
 	}
 end
 
-function this:GetWireTarget()
-	if not IsValid(self.InputSource) then return {} end
-	local outputs = self.InputSource.Outputs
-	if not outputs then return {} end
-	local posVec
-
-	for k, name in pairs(self.InputNames) do
-		local outTbl = outputs[name]
-		if not (outTbl and outTbl.Value) then continue end
-		local val = outTbl.Value
-
-		if isvector(val) and (val.x ~= 0 or val.y ~= 0 or val.z ~= 0) then
-			posVec = val
-			break
-		elseif IsEntity(val) and IsValid(val) then
-			posVec = val:GetPos()
-			break
-		end
-	end
-
-	return posVec
-end
-
-function this:GetDisplayConfig()
+function Guidance:GetDisplayConfig()
 	return {
-		["Wire Length"] = math.Round(self.WireLength / 39.37, 1) .. " m"
+		["Wire Length"] = math.Round(WireLength ^ 0.5 * 0.0254, 1) .. " m"
 	}
 end

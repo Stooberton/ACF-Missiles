@@ -1,39 +1,36 @@
 local ClassName = "Dumb"
 ACF = ACF or {}
 ACF.Guidance = ACF.Guidance or {}
-local this = ACF.Guidance[ClassName] or inherit.NewBaseClass()
-ACF.Guidance[ClassName] = this
----
-this.Name = ClassName
-this.desc = "This guidance package is empty and provides no control."
--- an object containing an obj:GetGuidanceOverride(missile, guidance) function
-this.Override = nil
-this.AppliedSpawnCountermeasures = false
+ACF.Guidance[ClassName] = ACF.Guidance[ClassName] or inherit.NewBaseClass()
 
-function this:Init()
+local Guidance = ACF.Guidance[ClassName]
+
+function Guidance:Init()
+	self.Name = ClassName
+	self.desc = "This guidance package is empty and provides no control."
 end
 
-function this:Configure(missile)
+function Guidance:Configure(Missile)
 end
 
-function this:GetGuidance(missile)
-	self:PreGuidance(missile)
+function Guidance:GetGuidance(Missile)
+	self:PreGuidance(Missile)
 
-	return self:ApplyOverride(missile) or {}
+	return self:ApplyOverride(Missile) or {}
 end
 
-function this:PreGuidance(missile)
+function Guidance:PreGuidance(Missile)
 	if not self.AppliedSpawnCountermeasures then
-		ACFM_ApplySpawnCountermeasures(missile, self)
+		ACFM_ApplySpawnCountermeasures(Missile, self)
 		self.AppliedSpawnCountermeasures = true
 	end
 
-	ACFM_ApplyCountermeasures(missile, self)
+	ACFM_ApplyCountermeasures(Missile, self)
 end
 
-function this:ApplyOverride(missile)
+function Guidance:ApplyOverride(Missile)
 end
 
-function this:GetDisplayConfig()
+function Guidance:GetDisplayConfig()
 	return {}
 end
