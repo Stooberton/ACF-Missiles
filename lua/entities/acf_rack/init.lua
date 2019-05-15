@@ -59,11 +59,7 @@ local function GetMissileAngPos(Rack, Missile, AttachName)
 
 	if Gun and RackData then
 		local Offset = (Gun.modeldiameter or Gun.caliber) / (2.54 * 2)
-
-		local MountPoint = RackData.mountpoints[AttachName] or {
-			offset = Vector(),
-			scaledir = Vector(0, 0, -1)
-		}
+		local MountPoint = RackData.mountpoints[AttachName]
 
 		Position = Position + MountPoint.offset + MountPoint.scaledir * Offset
 	end
