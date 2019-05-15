@@ -153,7 +153,7 @@ function CreateRackSelectGUI(node)
 		acfmenupanel.CData.RackSelect = vgui.Create("DComboBox", acfmenupanel.CustomDisplay) --Every display and slider is placed in the Round table so it gets trashed when selecting a new round type
 		acfmenupanel.CData.RackSelect:SetSize(100, 30)
 
-		acfmenupanel.CData.RackSelect.OnSelect = function(index, value, data)
+		acfmenupanel.CData.RackSelect.OnSelect = function(panel, index, value, data)
 			RunConsoleCommand("acfmenu_data9", data)
 			local rack = ACF.Weapons.Rack[data]
 
@@ -178,7 +178,7 @@ function CreateRackSelectGUI(node)
 	local default = node.mytable.rack
 
 	for Key, Value in pairs(ACF_GetCompatibleRacks(node.mytable.id)) do
-		acfmenupanel.CData.RackSelect:AddChoice(Value, Value, Value == default)
+		acfmenupanel.CData.RackSelect:AddChoice(Value, Key, Key == default)
 	end
 end
 

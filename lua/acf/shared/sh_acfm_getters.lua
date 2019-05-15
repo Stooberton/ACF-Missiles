@@ -128,18 +128,16 @@ end
 
 
 
-function ACF_GetCompatibleRacks(ammoId)
+function ACF_GetCompatibleRacks(AmmoId)
+    local Result = {}
 
-    local ret = {}
-
-    for rackId, data in pairs(ACF.Weapons.Rack) do
-        if ACF_CanLinkRack(rackId, ammoId) then
-            ret[#ret+1] = rackId
+    for RackId, Data in pairs(ACF.Weapons.Rack) do
+        if ACF_CanLinkRack(RackId, AmmoId) then
+            Result[RackId] = Data.name
         end
     end
-    
-    return ret
-    
+
+    return Result
 end
 
 
