@@ -554,6 +554,37 @@ function ENT:Think()
 	return true
 end
 
+-- Merely for backwards compatibility
+local OldNames = {
+	["40mm7xPOD"]	= "POD_7x40mm",
+	["70mm7xPOD"]	= "POD_7x70mm",
+	["1x BGM-71E"]	= "POD_1xTOW",
+	["2x BGM-71E"]	= "POD_2xTOW",
+	["4x BGM-71E"]	= "POD_4xTOW",
+	["380mmRW61"]	= "POD_RW61",
+	["3xUARRK"]		= "POD_3xUARRK",
+	["6xUARRK"]		= "POD_6xUARRK",
+	["1x FIM-92"]	= "POD_1xStinger",
+	["2x FIM-92"]	= "POD_2xStinger",
+	["4x FIM-92"]	= "POD_4xStinger",
+	["1x Strela-1"]	= "POD_1xStrela",
+	["2x Strela-1"]	= "POD_2xStrela",
+	["4x Strela-1"]	= "POD_4xStrela",
+	["1x Ataka"]	= "POD_1xAtaka",
+	["1x SPG9"]		= "POD_1xSPG9",
+	["1x Kornet"]	= "POD_1xKornet",
+	["127mm4xPOD"]	= "POD_4xZuni",
+	["1xRK_small"]	= "RK_1xRack_Small",
+	["1xRK"]		= "RK_1xRack",
+	["2xRK"]		= "RK_2xRack",
+	["3xRK"]		= "RK_3xRack",
+	["4xRK"]		= "RK_4xRack",
+	["2x AGM-114"]	= "RK_2xHellfire",
+	["4x AGM-114"]	= "RK_4xHellfire",
+	["1xAT3RK"]		= "RK_1xAT3",
+	["1xAT3RKS"]	= "RK_1xAT3_Small",
+}
+
 function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId)
 	if not Owner:CheckLimit("_acf_gun") then return false end
 
@@ -565,14 +596,17 @@ function MakeACF_Rack(Owner, Pos, Angle, Id, MissileId)
 	Id = Id or Rack.Id
 
 	if not Id or not ACF.Weapons.Rack[Id] then
+		if OldNames[Id] then
+			Id = OldNames[Id]
+		else
+			if not GunClass then
+				error("Couldn't spawn the missile rack: can't find the gun-class '" + tostring(MissileId) + "'.")
+			elseif not GunClass.rack then
+				error("Couldn't spawn the missile rack: '" + tostring(MissileId) + "' doesn't have a preferred missile rack.")
+			end
 
-		if not GunClass then
-			error("Couldn't spawn the missile rack: can't find the gun-class '" + tostring(MissileId) + "'.")
-		elseif not GunClass.rack then
-			error("Couldn't spawn the missile rack: '" + tostring(MissileId) + "' doesn't have a preferred missile rack.")
+			Id = GunClass.rack
 		end
-
-		Id = GunClass.rack
 	end
 
 	local GunDef = ACF.Weapons.Rack[Id] or error("Couldn't find the " .. tostring(Id) .. " gun-definition!")
